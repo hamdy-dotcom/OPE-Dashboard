@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #0B0D0E;
+  --color-surface: #141719;
+  --color-raise: #1A1E20;
+  --color-elev: #1E2325;
+
+  --color-ink: #F1F3F3;
+  --color-ink-2: #A3AAAE;
+  --color-ink-3: #6B7278;
+  --color-hairline: #23282B;
+
+  --color-go: #22C55E;
+  --color-go-soft: #0E2A19;
+  --color-go-text: #4ED07F;
+
+  --color-warn: #F0B429;
+  --color-warn-soft: #2C2109;
+  --color-warn-text: #E8B94E;
+
+  --color-stop: #F0554E;
+  --color-stop-soft: #2E1413;
+  --color-stop-text: #F07D77;
+
+  --color-idle: #2C3235;
+  --color-on-accent: #08130C;
+  --color-on-ink: #0B0D0E;
+
+  --font-sans: "Rubik", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+}
+
+@layer base {
+  html {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100dvh;
+  }
+  ::placeholder {
+    color: var(--color-ink-3);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink-2);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer utilities {
+  /* tabular figures — use on every number */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  /* the 1px light rim that carries depth on dark surfaces */
+  .rim {
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.045);
+  }
+  .rim-float {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.1),
+      0 18px 44px rgb(0 0 0 / 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

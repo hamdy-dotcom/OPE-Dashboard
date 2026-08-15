@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pyramids Shuttle — Design Samples</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#0B0D0E;
+  --surface:#141719;
+  --raise:#1A1E20;
+  --elev:#1E2325;
+  --ink:#F1F3F3;
+  --ink-2:#A3AAAE;
+  --ink-3:#6B7278;
+  --hairline:#23282B;
+  --go:#22C55E;
+  --go-soft:#0E2A19;
+  --warn:#F0B429;
+  --warn-soft:#2C2109;
+  --stop:#F0554E;
+  --stop-soft:#2E1413;
+  --idle:#2C3235;
+  --on-accent:#08130C;
+  --on-ink:#0B0D0E;
+
+  --r-card:14px;
+  --r-pill:999px;
+  --shadow-card:0 0 0 1px rgba(255,255,255,.045);
+  --shadow-float:0 0 0 1px rgba(255,255,255,.10), 0 18px 44px rgba(0,0,0,.55);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Rubik',system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;
+  background:var(--canvas);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- chrome ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:12px 20px;
+  background:rgba(11,13,14,.82);
+  backdrop-filter:blur(12px);
+  border-block-end:1px solid var(--hairline);
+}
+.brandmark{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.01em}
+.brandmark .glyph{
+  inline-size:26px;block-size:26px;border-radius:8px;background:var(--ink);
+  display:grid;place-items:center;color:var(--on-ink);font-size:12px;font-weight:700;
+}
+.seg{display:flex;gap:2px;background:#191D1F;padding:3px;border-radius:var(--r-pill);border:1px solid var(--hairline)}
+.seg button{
+  font:inherit;font-size:12.5px;font-weight:500;color:var(--ink-2);
+  border:0;background:transparent;padding:6px 14px;border-radius:var(--r-pill);cursor:pointer;
+  white-space:nowrap;
+}
+.seg button[aria-selected="true"]{background:var(--elev);color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.spacer{flex:1}
+.langtoggle{
+  font:inherit;font-size:12px;font-weight:600;letter-spacing:.04em;
+  border:1px solid var(--hairline);background:var(--surface);color:var(--ink-2);
+  padding:6px 12px;border-radius:var(--r-pill);cursor:pointer;
+}
+.note{
+  font-size:11.5px;color:var(--ink-3);padding:8px 20px 0;
+}
+
+/* ---------- shell ---------- */
+.shell{
+  display:grid;
+  grid-template-columns:232px minmax(340px,400px) minmax(0,1fr);
+  gap:14px;
+  padding:14px 20px 28px;
+  align-items:start;
+}
+.page[hidden]{display:none}
+
+/* ---------- nav ---------- */
+.nav{
+  background:var(--surface);border-radius:var(--r-card);
+  box-shadow:var(--shadow-card);
+  padding:14px 10px;position:sticky;top:70px;
+}
+.navsearch{
+  display:flex;align-items:center;gap:8px;
+  border:1px solid var(--hairline);border-radius:10px;
+  padding:8px 10px;margin-block-end:14px;color:var(--ink-3);font-size:13px;
+}
+.navgroup{
+  font-size:10px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;
+  color:var(--ink-3);padding:14px 10px 6px;
+}
+.navitem{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 10px;border-radius:9px;color:var(--ink-2);
+  font-size:13.5px;cursor:pointer;
+}
+.navitem:hover{background:var(--raise)}
+.navitem.active{background:var(--elev);color:var(--ink);font-weight:500}
+.navitem .ico{inline-size:16px;text-align:center;font-size:13px;opacity:.75}
+.navitem .count{
+  margin-inline-start:auto;font-size:10.5px;font-weight:600;color:var(--ink-2);
+  background:var(--idle);border-radius:var(--r-pill);padding:1px 7px;
+}
+.subtree{padding-inline-start:14px;margin-block:2px 6px;border-inline-start:1px solid var(--hairline)}
+.subtree .navitem{font-size:13px;padding-block:5px}
+
+/* ---------- generic surfaces ---------- */
+.panel{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow-card);overflow:hidden}
+.panelhead{
+  display:flex;align-items:center;gap:10px;
+  padding:13px 16px;border-block-end:1px solid var(--hairline);
+}
+.panelhead h2{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.panelhead .tool{
+  margin-inline-start:auto;display:flex;gap:14px;color:var(--ink-3);font-size:12.5px;
+}
+.panelhead .tool span{cursor:pointer}
+
+/* ---------- list cards ---------- */
+.cards{padding:6px}
+.card{
+  border-radius:12px;padding:13px 14px;cursor:pointer;
+  border:1px solid transparent;
+}
+.card + .card{border-block-start:1px solid var(--hairline);border-radius:12px}
+.card:hover{background:var(--raise)}
+.card.sel{
+  background:var(--elev);border-color:rgba(255,255,255,.10);
+  box-shadow:var(--shadow-float);position:relative;z-index:2;
+}
+.cardtop{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.code{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.sub{color:var(--ink-3);font-size:12.5px;margin-block-start:1px}
+.cardrow{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-block-start:9px;
+}
+.person{font-size:13.5px;color:var(--ink);font-weight:400}
+.cardfoot{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-block-start:10px;padding-block-start:9px;border-block-start:1px solid var(--hairline);
+}
+
+/* ---------- pills & micro-labels ---------- */
+.pill{
+  font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 9px;border-radius:var(--r-pill);color:var(--ink);background:var(--idle);
+  white-space:nowrap;
+}
+.pill.go{background:var(--go);color:var(--on-accent)}
+.pill.warn{background:var(--warn);color:#2A1E02}
+.pill.stop{background:var(--stop);color:#2A0B09}
+.pill.ghost{background:var(--idle);color:var(--ink-2)}
+
+.micro{
+  font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.micro::before{
+  content:"";inline-size:2.5px;block-size:11px;border-radius:2px;background:var(--ink-3);
+}
+.micro.warn{color:#E8B94E}.micro.warn::before{background:var(--warn)}
+.micro.stop{color:#F07D77}.micro.stop::before{background:var(--stop)}
+.micro.go{color:#4ED07F}.micro.go::before{background:var(--go)}
+.micro.bare::before{display:none}
+
+.dot{inline-size:6px;block-size:6px;border-radius:50%;display:inline-block}
+.dot.warn{background:var(--warn)}.dot.go{background:var(--go)}.dot.stop{background:var(--stop)}
+
+.swatch{inline-size:9px;block-size:9px;border-radius:3px;display:inline-block}
+
+/* ---------- KM meter (signature) ---------- */
+.meter{margin-block-start:10px}
+.meterline{
+  display:flex;align-items:baseline;gap:8px;font-size:13.5px;font-weight:500;
+}
+.meterline .arrow{color:var(--ink-3);font-weight:400}
+.meterline .delta{margin-inline-start:auto;font-size:12.5px;color:var(--ink-2);font-weight:500}
+.track{
+  block-size:4px;border-radius:3px;background:var(--idle);margin-block-start:7px;overflow:hidden;
+}
+.track i{display:block;block-size:100%;border-radius:3px;background:var(--ink)}
+.track i.warn{background:var(--warn)}
+.track i.stop{background:var(--stop)}
+.meterfoot{display:flex;justify-content:space-between;margin-block-start:6px;gap:10px}
+
+/* ---------- detail ---------- */
+.tabs{display:flex;gap:20px;padding:0 18px;border-block-end:1px solid var(--hairline)}
+.tabs button{
+  font:inherit;font-size:13.5px;color:var(--ink-3);background:none;border:0;
+  padding:13px 0 11px;cursor:pointer;border-block-end:2px solid transparent;
+}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:500;border-block-end-color:var(--ink)}
+.detailhead{padding:18px 18px 14px}
+.detailhead .code{font-size:24px}
+.headmeta{display:flex;align-items:center;gap:10px;margin-block-start:9px;flex-wrap:wrap}
+
+.kv{padding:0 18px 6px}
+.kv .row{
+  display:flex;gap:16px;align-items:baseline;
+  padding:9px 0;border-block-end:1px solid var(--hairline);
+}
+.kv .row:last-child{border-block-end:0}
+.kv .k{color:var(--ink-2);font-size:13px;flex:0 0 44%}
+.kv .v{font-size:13.5px;font-weight:500;text-align:end;flex:1}
+.kv .v.muted{font-weight:400;color:var(--ink-2)}
+
+.section{padding:16px 18px;border-block-start:1px solid var(--hairline)}
+.section h3{
+  font-size:10.5px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;
+  color:var(--ink-3);margin-block-end:12px;
+}
+.btn{
+  font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+  border:1px solid var(--hairline);background:var(--surface);color:var(--ink);
+  border-radius:9px;padding:8px 14px;
+}
+.btn.primary{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-block-start:1px solid var(--hairline)}
+
+/* ---------- stage rail ---------- */
+.rail{display:flex;align-items:flex-start;gap:0;margin-block:4px 6px}
+.stage{flex:1;position:relative;text-align:center;min-inline-size:0}
+.stage .node{
+  inline-size:11px;block-size:11px;border-radius:50%;background:var(--idle);
+  margin:0 auto 8px;position:relative;z-index:2;
+}
+.stage.done .node{background:var(--ink)}
+.stage.now .node{background:var(--go);box-shadow:0 0 0 4px var(--go-soft)}
+.stage.skip .node{background:var(--idle)}
+.stage::before{
+  content:"";position:absolute;inset-block-start:5px;inset-inline-start:-50%;
+  inline-size:100%;block-size:1.5px;background:var(--hairline);z-index:1;
+}
+.stage:first-child::before{display:none}
+.stage.done::before,.stage.now::before{background:var(--ink)}
+.stage .lbl{
+  font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);line-height:1.3;
+}
+.stage.done .lbl,.stage.now .lbl{color:var(--ink)}
+.stage.skip .lbl{text-decoration:line-through;color:var(--ink-3)}
+
+/* ---------- issue / part chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  font-size:12px;border:1px solid var(--hairline);border-radius:8px;
+  padding:5px 10px;color:var(--ink-2);background:var(--surface);
+  display:inline-flex;align-items:center;gap:7px;
+}
+.chip.skipped{color:var(--ink-3);text-decoration:line-through;background:var(--raise)}
+.chip .x{font-size:10px;color:var(--stop);text-decoration:none;display:inline-block}
+
+.wo{border:1px solid var(--hairline);border-radius:11px;padding:12px 13px}
+.wo + .wo{margin-block-start:9px}
+.wotop{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.wonum{font-size:14px;font-weight:600}
+
+/* ---------- tables ---------- */
+table{inline-size:100%;border-collapse:collapse}
+th{
+  font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);text-align:start;padding:10px 12px;border-block-end:1px solid var(--hairline);
+  white-space:nowrap;
+}
+td{padding:11px 12px;border-block-end:1px solid var(--hairline);font-size:13.5px;vertical-align:middle}
+tr:last-child td{border-block-end:0}
+td.num,th.num{text-align:end;font-weight:500}
+.secrow td{background:var(--raise);font-weight:600;font-size:12.5px}
+.secrow .w{color:var(--ink-2);font-weight:600}
+.kpiname{color:var(--ink-2)}
+.input{
+  border:1px solid var(--hairline);border-radius:8px;padding:5px 9px;
+  font:inherit;font-size:13.5px;font-weight:500;inline-size:64px;text-align:end;
+  font-variant-numeric:tabular-nums;background:var(--surface);color:var(--ink);
+}
+.totalrow td{border-block-start:1.5px solid var(--ink);font-weight:600;font-size:14px;background:var(--surface)}
+
+.invoice{display:grid;gap:0}
+.invoice .row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-block-end:1px solid var(--hairline)}
+.invoice .row.total{border-block-end:0;border-block-start:1.5px solid var(--ink);margin-block-start:4px;padding-block-start:13px}
+.invoice .row.total .v{font-size:19px;font-weight:600}
+.formula{
+  font-size:12px;color:var(--ink-2);background:var(--raise);border:1px solid var(--hairline);
+  border-radius:9px;padding:10px 12px;margin-block-end:14px;line-height:1.6;
+}
+
+/* ---------- empty helper ---------- */
+.stat{display:flex;gap:22px;flex-wrap:wrap;padding:14px 18px;border-block-end:1px solid var(--hairline)}
+.stat div{min-inline-size:0}
+.stat .l{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.stat .n{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-block-start:3px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  .shell{grid-template-columns:1fr;padding-inline:12px}
+  .nav{position:static;display:none}
+  .topbar{padding-inline:12px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brandmark"><span class="glyph">P</span><span data-i18n="brand">Pyramids Ops</span></div>
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected="true" data-page="p1" data-i18n="tab1">Day Board</button>
+    <button role="tab" aria-selected="false" data-page="p2" data-i18n="tab2">Maintenance</button>
+    <button role="tab" aria-selected="false" data-page="p3" data-i18n="tab3">Vendor Invoicing</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="langtoggle" id="lang">العربية</button>
+</header>
+<p class="note" data-i18n="note">Static mockup — three sample screens, real structure, sample data.</p>
+
+<!-- ==================== PAGE 1 — DAY BOARD ==================== -->
+<div class="shell page" id="p1">
+
+  <nav class="nav">
+    <div class="navsearch">⌕ <span data-i18n="search">Search</span></div>
+
+    <div class="navgroup" data-i18n="g_overview">Overview</div>
+    <div class="navitem active"><span class="ico">▦</span><span data-i18n="n_day">Day board</span></div>
+    <div class="subtree">
+      <div class="navitem"><span data-i18n="n_fleet">Fleet status</span></div>
+      <div class="navitem"><span data-i18n="n_insights">Insights</span></div>
+    </div>
+
+    <div class="navgroup" data-i18n="g_ops">Operations</div>
+    <div class="navitem"><span class="ico">≡</span><span data-i18n="n_daily">Daily operations</span></div>
+    <div class="navitem"><span class="ico">⚡</span><span data-i18n="n_charging">Charging sessions</span></div>
+
+    <div class="navgroup" data-i18n="g_maint">Maintenance</div>
+    <div class="navitem"><span class="ico">⚑</span><span data-i18n="n_rfr">RFRs</span><span class="count">7</span></div>
+    <div class="navitem"><span class="ico">✎</span><span data-i18n="n_wo">Work orders</span><span class="count">4</span></div>
+    <div class="navitem"><span class="ico">◷</span><span data-i18n="n_pm">Periodic maintenance</span><span class="count">12</span></div>
+
+    <div class="navgroup" data-i18n="g_fleet">Vehicles &amp; staff</div>
+    <div class="navitem"><span class="ico">▭</span><span data-i18n="n_veh">Vehicles</span></div>
+    <div class="navitem"><span class="ico">◍</span><span data-i18n="n_drv">Drivers</span></div>
+    <div class="navitem"><span class="ico">◆</span><span data-i18n="n_ven">Vendors</span></div>
+    <div class="navitem"><span class="ico">↗</span><span data-i18n="n_rt">Routes &amp; stations</span></div>
+
+    <div class="navgroup" data-i18n="g_fin">Finance</div>
+    <div class="navitem"><span class="ico">◎</span><span data-i18n="n_sc">Scorecards</span></div>
+    <div class="navitem"><span class="ico">▤</span><span data-i18n="n_inv">Invoices</span></div>
+  </nav>
+
+  <section class="panel">
+    <div class="panelhead">
+      <h2 data-i18n="h_today">Today · Morning shift</h2>
+      <div class="tool"><span data-i18n="filters">⚟ Filters</span><span>⌕</span></div>
+    </div>
+    <div class="stat">
+      <div><div class="l" data-i18n="s_out">Buses out</div><div class="n">38<span style="color:var(--ink-3);font-size:14px">/50</span></div></div>
+      <div><div class="l" data-i18n="s_missing">Missing end KM</div><div class="n" style="color:var(--warn)">6</div></div>
+      <div><div class="l" data-i18n="s_open">Open RFRs</div><div class="n" style="color:var(--stop)">7</div></div>
+    </div>
+
+    <div class="cards">
+
+      <article class="card sel">
+        <div class="cardtop">
+          <span class="code">BUS-014</span>
+          <span class="pill go" data-i18n="p_operating">Operating</span>
+          <span class="micro bare" style="margin-inline-start:auto"><span class="swatch" style="background:#0B6BCB"></span>Main Route</span>
+        </div>
+        <div class="sub">Electric Bus · ب ج د 4821 · OPE</div>
+        <div class="cardrow"><span class="person">Ahmed Fathy</span><span class="micro bare">DRV-021</span></div>
+        <div class="meter">
+          <div class="meterline">
+            <span>241,780</span><span class="arrow">→</span><span>242,109</span>
+            <span class="delta">329 km</span>
+          </div>
+          <div class="track"><i style="width:82%"></i></div>
+          <div class="meterfoot">
+            <span class="micro bare">340 km → Oil - Filters</span>
+            <span class="micro bare">Battery 94 → 31%</span>
+          </div>
+        </div>
+        <div class="cardfoot">
+          <span class="micro go">98% operating</span>
+          <span class="micro bare">Tips 120 EGP</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">BUS-027</span>
+          <span class="pill warn" data-i18n="p_noend">No end KM</span>
+          <span class="micro bare" style="margin-inline-start:auto"><span class="swatch" style="background:#1B7F5A"></span>Sphinx Loop</span>
+        </div>
+        <div class="sub">Diesel Bus · س ع ط 1163 · Al Tayaar Rentals</div>
+        <div class="cardrow"><span class="person">Mahmoud Saleh</span><span class="micro bare">DRV-044</span></div>
+        <div class="meter">
+          <div class="meterline">
+            <span>118,402</span><span class="arrow">→</span><span style="color:var(--ink-3)">—</span>
+            <span class="delta" style="color:var(--warn)">pending</span>
+          </div>
+          <div class="track"><i class="warn" style="width:46%"></i></div>
+          <div class="meterfoot"><span class="micro warn">Shift ended 2h ago</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">BUS-006</span>
+          <span class="pill stop" data-i18n="p_repair">Under repair</span>
+          <span class="micro bare" style="margin-inline-start:auto"><span class="swatch" style="background:#B4690E"></span>Panorama Line</span>
+        </div>
+        <div class="sub">Electric Bus · ب ج د 4830 · OPE</div>
+        <div class="cardrow"><span class="person">Karim Adel</span><span class="micro bare">DRV-009</span></div>
+        <div class="cardfoot">
+          <span class="micro stop">RFR-000418 · 2d 4h access</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">BUS-031</span>
+          <span class="pill go" data-i18n="p_operating">Operating</span>
+          <span class="micro bare" style="margin-inline-start:auto"><span class="swatch" style="background:#0B6BCB"></span>Main Route</span>
+        </div>
+        <div class="sub">Diesel Mini Bus · ر ق ن 8842 · Nile Fleet</div>
+        <div class="cardrow"><span class="person">Tarek Nour</span><span class="micro bare">DRV-052</span></div>
+        <div class="meter">
+          <div class="meterline">
+            <span>96,220</span><span class="arrow">→</span><span>96,498</span>
+            <span class="delta">278 km</span>
+          </div>
+          <div class="track"><i class="stop" style="width:100%"></i></div>
+          <div class="meterfoot"><span class="micro stop">Overdue · External Air Filter</span></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs">
+      <button aria-selected="true" data-i18n="t_over">Overview</button>
+      <button aria-selected="false" data-i18n="t_charge">Charging</button>
+      <button aria-selected="false" data-i18n="t_maint">Maintenance</button>
+      <button aria-selected="false" data-i18n="t_hist">History</button>
+    </div>
+
+    <div class="detailhead">
+      <span class="code">BUS-014</span>
+      <div class="headmeta">
+        <span class="pill go" data-i18n="p_operating">Operating</span>
+        <span class="micro bare">ب ج د 4821</span>
+        <span class="micro go">98% operating</span>
+      </div>
+    </div>
+
+    <div class="kv">
+      <div class="row"><span class="k" data-i18n="k_vendor">Vendor</span><span class="v">OPE — Company owned</span></div>
+      <div class="row"><span class="k" data-i18n="k_type">Vehicle type</span><span class="v">Electric Bus · 210 kWh</span></div>
+      <div class="row"><span class="k" data-i18n="k_route">Route</span><span class="v"><span class="swatch" style="background:#0B6BCB"></span> Main Route · 8.6 km</span></div>
+      <div class="row"><span class="k" data-i18n="k_driver">Driver</span><span class="v">Ahmed Fathy · DRV-021</span></div>
+      <div class="row"><span class="k" data-i18n="k_shift">Shift</span><span class="v">Morning · 06:00 – 14:00</span></div>
+      <div class="row"><span class="k" data-i18n="k_lic">License expiry</span><span class="v muted">14 Mar 2027</span></div>
+    </div>
+
+    <div class="section">
+      <h3 data-i18n="h_km">Odometer</h3>
+      <div class="meter" style="margin:0">
+        <div class="meterline" style="font-size:19px">
+          <span>241,780</span><span class="arrow">→</span><span>242,109</span>
+          <span class="delta" style="font-size:14px">329 km today</span>
+        </div>
+        <div class="track" style="block-size:6px"><i style="width:82%"></i></div>
+        <div class="meterfoot">
+          <span class="micro bare">Last PM 241,769 km</span>
+          <span class="micro warn">340 km to next</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3 data-i18n="h_pmnext">Next periodic maintenance</h3>
+      <div class="kv" style="padding:0">
+        <div class="row"><span class="k">Oil - Filters</span><span class="v"><span class="dot warn"></span> 340 km</span></div>
+        <div class="row"><span class="k">Air Dryer Filter</span><span class="v">1,120 km</span></div>
+        <div class="row"><span class="k">Replenish Grease</span><span class="v muted">6,480 km</span></div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn primary" data-i18n="b_end">Log end KM</button>
+      <button class="btn" data-i18n="b_rfr">Raise RFR</button>
+    </div>
+  </section>
+</div>
+
+<!-- ==================== PAGE 2 — MAINTENANCE ==================== -->
+<div class="shell page" id="p2" hidden>
+
+  <nav class="nav">
+    <div class="navsearch">⌕ <span data-i18n="search">Search</span></div>
+    <div class="navgroup" data-i18n="g_overview">Overview</div>
+    <div class="navitem"><span class="ico">▦</span><span data-i18n="n_day">Day board</span></div>
+    <div class="navgroup" data-i18n="g_ops">Operations</div>
+    <div class="navitem"><span class="ico">≡</span><span data-i18n="n_daily">Daily operations</span></div>
+    <div class="navitem"><span class="ico">⚡</span><span data-i18n="n_charging">Charging sessions</span></div>
+    <div class="navgroup" data-i18n="g_maint">Maintenance</div>
+    <div class="navitem active"><span class="ico">⚑</span><span data-i18n="n_rfr">RFRs</span><span class="count">7</span></div>
+    <div class="subtree">
+      <div class="navitem"><span data-i18n="n_wo">Work orders</span></div>
+      <div class="navitem"><span data-i18n="n_pm">Periodic maintenance</span></div>
+      <div class="navitem"><span data-i18n="n_centers">Maintenance centers</span></div>
+    </div>
+    <div class="navgroup" data-i18n="g_fleet">Vehicles &amp; staff</div>
+    <div class="navitem"><span class="ico">▭</span><span data-i18n="n_veh">Vehicles</span></div>
+    <div class="navitem"><span class="ico">◍</span><span data-i18n="n_drv">Drivers</span></div>
+  </nav>
+
+  <section class="panel">
+    <div class="panelhead">
+      <h2 data-i18n="h_rfrs">Open requests</h2>
+      <div class="tool"><span data-i18n="filters">⚟ Filters</span><span>⌕</span></div>
+    </div>
+    <div class="cards">
+
+      <article class="card sel">
+        <div class="cardtop">
+          <span class="code">RFR-000418</span>
+          <span class="pill go" data-i18n="st_active">Active</span>
+        </div>
+        <div class="sub">BUS-006 · ب ج د 4830 · Karim Adel</div>
+        <div class="cardrow">
+          <span class="chip">Brakes</span><span class="chip">Doors</span>
+        </div>
+        <div class="cardfoot">
+          <span class="micro stop">2d 4h 13m access</span>
+          <span class="micro bare">2 work orders</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">RFR-000421</span>
+          <span class="pill ghost" data-i18n="st_pending">Pending</span>
+        </div>
+        <div class="sub">BUS-022 · س ع ط 1190 · Youssef Ibrahim</div>
+        <div class="cardrow"><span class="chip">Air Conditioning (A/C)</span></div>
+        <div class="cardfoot"><span class="micro bare">Clock not started</span></div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">RFR-000415</span>
+          <span class="pill warn" data-i18n="st_snt">Skipped next trip</span>
+        </div>
+        <div class="sub">BUS-009 · ر ق ن 8811 · Tarek Nour</div>
+        <div class="cardrow"><span class="chip">Speakers</span><span class="chip skipped">Microphone <span class="x">✕</span></span></div>
+        <div class="cardfoot">
+          <span class="micro warn">Frozen · 6h 40m held</span>
+          <span class="micro bare">Repair after operation</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">RFR-000409</span>
+          <span class="pill" data-i18n="st_rolled">Rolled over</span>
+        </div>
+        <div class="sub">BUS-018 · ب ج د 4844 · Mahmoud Saleh</div>
+        <div class="cardrow"><span class="chip">Suspension</span></div>
+        <div class="cardfoot"><span class="micro bare">Delayed to 17 Aug</span></div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs">
+      <button aria-selected="true" data-i18n="t_req">Request</button>
+      <button aria-selected="false" data-i18n="t_wos">Work orders</button>
+      <button aria-selected="false" data-i18n="t_time">Timeline</button>
+    </div>
+
+    <div class="detailhead">
+      <span class="code">RFR-000418</span>
+      <div class="headmeta">
+        <span class="pill go" data-i18n="st_active">Active</span>
+        <span class="micro stop">2d 4h 13m access time</span>
+      </div>
+    </div>
+
+    <div class="section" style="border-block-start:0">
+      <h3 data-i18n="h_stage">Stage</h3>
+      <div class="rail">
+        <div class="stage done"><div class="node"></div><div class="lbl">Pending</div></div>
+        <div class="stage now"><div class="node"></div><div class="lbl">Active</div></div>
+        <div class="stage skip"><div class="node"></div><div class="lbl">Skipped<br>next trip</div></div>
+        <div class="stage"><div class="node"></div><div class="lbl">Rolled<br>over</div></div>
+        <div class="stage"><div class="node"></div><div class="lbl">Completed</div></div>
+      </div>
+      <p class="micro warn" style="margin-block-start:12px">Clock runs only while active</p>
+    </div>
+
+    <div class="kv">
+      <div class="row"><span class="k" data-i18n="k_req">Requested</span><span class="v">14 Aug 2026 · 09:12</span></div>
+      <div class="row"><span class="k" data-i18n="k_veh">Vehicle</span><span class="v">BUS-006 · ب ج د 4830</span></div>
+      <div class="row"><span class="k" data-i18n="k_drvauto">Driver <span style="color:var(--ink-3);font-size:11px">auto</span></span><span class="v">Karim Adel · DRV-009</span></div>
+      <div class="row"><span class="k" data-i18n="k_kmauto">KM record <span style="color:var(--ink-3);font-size:11px">auto</span></span><span class="v">189,204 km</span></div>
+      <div class="row"><span class="k" data-i18n="k_loc">Location</span><span class="v">Sphinx Plaza — bay 3</span></div>
+      <div class="row"><span class="k" data-i18n="k_by">Raised by</span><span class="v muted">Nourhan A. · Operations</span></div>
+    </div>
+
+    <div class="section">
+      <h3 data-i18n="h_issues">Issues</h3>
+      <div class="chips">
+        <span class="chip"><span class="dot stop"></span> Brakes</span>
+        <span class="chip"><span class="dot warn"></span> Doors</span>
+        <span class="chip skipped">Electrical <span class="x">✕</span></span>
+      </div>
+      <p class="micro bare" style="margin-block-start:10px;color:var(--ink-3)">Electrical skipped — no issue found</p>
+    </div>
+
+    <div class="section">
+      <h3 data-i18n="h_wos">Work orders</h3>
+
+      <div class="wo">
+        <div class="wotop">
+          <span class="wonum">WO-000512</span>
+          <span class="pill go" data-i18n="w_done">Completed</span>
+          <span class="micro bare" style="margin-inline-start:auto">Brakes</span>
+        </div>
+        <div class="kv" style="padding:8px 0 0">
+          <div class="row"><span class="k">Engineer</span><span class="v">Eng. Hossam Ezzat</span></div>
+          <div class="row"><span class="k">Center</span><span class="v">OPE Maintenance Center</span></div>
+          <div class="row"><span class="k">Repair window</span><span class="v">14 Aug 13:25 → 15 Aug 10:40</span></div>
+          <div class="row"><span class="k">Parts replaced</span><span class="v">Front Brake Pads, Oil Seal</span></div>
+          <div class="row"><span class="k">Repeat index</span><span class="v"><span class="dot warn"></span> 2 in 30d</span></div>
+        </div>
+      </div>
+
+      <div class="wo">
+        <div class="wotop">
+          <span class="wonum">WO-000518</span>
+          <span class="pill warn" data-i18n="w_prog">In progress</span>
+          <span class="micro bare" style="margin-inline-start:auto">Doors</span>
+        </div>
+        <div class="kv" style="padding:8px 0 0">
+          <div class="row"><span class="k">Engineer</span><span class="v">Eng. Mostafa Kamal</span></div>
+          <div class="row"><span class="k">Center</span><span class="v">AFS Maintenance Center</span></div>
+          <div class="row"><span class="k">Repair start</span><span class="v">16 Aug 08:15</span></div>
+          <div class="row"><span class="k">Vehicle status</span><span class="v muted">Under repair</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn primary" data-i18n="b_wo">Create work order</button>
+      <button class="btn" data-i18n="b_stage">Change stage</button>
+      <button class="btn" data-i18n="b_skip">Skip request</button>
+    </div>
+  </section>
+</div>
+
+<!-- ==================== PAGE 3 — VENDOR INVOICING ==================== -->
+<div class="shell page" id="p3" hidden>
+
+  <nav class="nav">
+    <div class="navsearch">⌕ <span data-i18n="search">Search</span></div>
+    <div class="navgroup" data-i18n="g_overview">Overview</div>
+    <div class="navitem"><span class="ico">▦</span><span data-i18n="n_day">Day board</span></div>
+    <div class="navgroup" data-i18n="g_fleet">Vehicles &amp; staff</div>
+    <div class="navitem"><span class="ico">◆</span><span data-i18n="n_ven">Vendors</span></div>
+    <div class="navgroup" data-i18n="g_fin">Finance</div>
+    <div class="navitem active"><span class="ico">◎</span><span data-i18n="n_sc">Scorecards</span></div>
+    <div class="subtree">
+      <div class="navitem"><span data-i18n="n_inv">Invoices</span></div>
+      <div class="navitem"><span data-i18n="n_tpl">KPI templates</span></div>
+    </div>
+  </nav>
+
+  <section class="panel">
+    <div class="panelhead">
+      <h2 data-i18n="h_month">August 2026</h2>
+      <div class="tool"><span data-i18n="filters">⚟ Filters</span></div>
+    </div>
+    <div class="cards">
+
+      <article class="card sel">
+        <div class="cardtop">
+          <span class="code">OPE</span>
+          <span class="pill ghost" data-i18n="v_owned">Owned</span>
+        </div>
+        <div class="sub" data-i18n="v_company">Company owned · KPI applies</div>
+        <div class="meter">
+          <div class="meterline"><span style="font-size:15px">87.4%</span><span class="delta">achieved</span></div>
+          <div class="track"><i style="width:87.4%"></i></div>
+        </div>
+        <div class="cardfoot">
+          <span class="micro bare">31.6 avg buses</span>
+          <span class="micro go">1,381,920 EGP</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">Al Tayaar Rentals</span>
+          <span class="pill ghost" data-i18n="v_rent">Rentals</span>
+        </div>
+        <div class="sub" data-i18n="v_nokpi">Per bus-day · no KPI</div>
+        <div class="cardfoot">
+          <span class="micro bare">248 bus-days</span>
+          <span class="micro bare">744,000 EGP</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="cardtop">
+          <span class="code">Nile Fleet</span>
+          <span class="pill ghost" data-i18n="v_rent">Rentals</span>
+        </div>
+        <div class="sub" data-i18n="v_nokpi">Per bus-day · no KPI</div>
+        <div class="cardfoot">
+          <span class="micro bare">186 bus-days</span>
+          <span class="micro warn" data-i18n="v_draft">Draft</span>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs">
+      <button aria-selected="true" data-i18n="t_sc">Scorecard</button>
+      <button aria-selected="false" data-i18n="t_inv">Invoice</button>
+      <button aria-selected="false" data-i18n="t_tpl">Template</button>
+    </div>
+
+    <div class="detailhead">
+      <span class="code">OPE</span>
+      <div class="headmeta">
+        <span class="pill warn" data-i18n="sc_draft">Draft</span>
+        <span class="micro bare">August 2026</span>
+        <span class="micro go">87.4% achieved</span>
+      </div>
+    </div>
+
+    <div style="padding:0 6px">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="th_kpi">KPI</th>
+            <th class="num" data-i18n="th_w">Weight</th>
+            <th class="num" data-i18n="th_a">Achieved</th>
+            <th data-i18n="th_note">Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="secrow"><td data-i18n="sec_perf">Performance Metrics</td><td class="num w">40%</td><td class="num w">33.1</td><td></td></tr>
+          <tr><td class="kpiname">Lead Time</td><td class="num">20</td><td class="num"><input class="input" value="14"></td><td class="micro bare" style="color:var(--ink-3)">Access time over SLA</td></tr>
+          <tr><td class="kpiname">Availability</td><td class="num">35</td><td class="num"><input class="input" value="35"></td><td></td></tr>
+          <tr><td class="kpiname">Delayed Reports</td><td class="num">15</td><td class="num"><input class="input" value="11"></td><td></td></tr>
+          <tr><td class="kpiname">Exceeded PM</td><td class="num">30</td><td class="num"><input class="input" value="23"></td><td class="micro bare" style="color:var(--ink-3)">4 buses past due</td></tr>
+
+          <tr class="secrow"><td data-i18n="sec_qual">Quality &amp; Safety Metrics</td><td class="num w">40%</td><td class="num w">36.0</td><td></td></tr>
+          <tr><td class="kpiname">Severe Accidents</td><td class="num">30</td><td class="num"><input class="input" value="30"></td><td></td></tr>
+          <tr><td class="kpiname">Speed Violations</td><td class="num">20</td><td class="num"><input class="input" value="16"></td><td></td></tr>
+          <tr><td class="kpiname">Safety Training</td><td class="num">30</td><td class="num"><input class="input" value="30"></td><td></td></tr>
+          <tr><td class="kpiname">Buses Cleaning &amp; Quality</td><td class="num">20</td><td class="num"><input class="input" value="14"></td><td class="micro bare" style="color:var(--ink-3)">Facilities pending</td></tr>
+
+          <tr class="secrow"><td data-i18n="sec_disc">Driver Compliance</td><td class="num w">20%</td><td class="num w">18.0</td><td></td></tr>
+          <tr><td class="kpiname">Uniform Action Taken</td><td class="num">50</td><td class="num"><input class="input" value="40"></td><td></td></tr>
+          <tr><td class="kpiname">Operations Guidelines</td><td class="num">50</td><td class="num"><input class="input" value="50"></td><td></td></tr>
+
+          <tr class="totalrow"><td data-i18n="th_total">Total achieved</td><td class="num"></td><td class="num">87.4%</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h3 data-i18n="h_inv">Invoice</h3>
+      <div class="formula" data-i18n="f_owned">Monthly fee × average daily buses × achieved %</div>
+      <div class="invoice">
+        <div class="row"><span class="k" data-i18n="i_basis">Basis</span><span class="v">Average buses per month</span></div>
+        <div class="row"><span class="k" data-i18n="i_rate">Monthly fee per bus</span><span class="v">50,000 EGP</span></div>
+        <div class="row"><span class="k" data-i18n="i_qty">Average daily buses</span><span class="v">31.6</span></div>
+        <div class="row"><span class="k" data-i18n="i_gross">Gross</span><span class="v">1,580,000 EGP</span></div>
+        <div class="row"><span class="k" data-i18n="i_kpi">KPI achieved</span><span class="v"><span class="dot warn"></span> 87.4%</span></div>
+        <div class="row total"><span class="k" data-i18n="i_net">Net payable</span><span class="v">1,380,920 EGP</span></div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn primary" data-i18n="b_approve">Approve scorecard</button>
+      <button class="btn" data-i18n="b_gen">Generate invoice</button>
+    </div>
+  </section>
+</div>
+
+<script>
+// page switching
+document.querySelectorAll('.seg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-selected','false'));
+    b.setAttribute('aria-selected','true');
+    document.querySelectorAll('.page').forEach(p=>p.hidden=true);
+    document.getElementById(b.dataset.page).hidden=false;
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+});
+
+// card selection
+document.querySelectorAll('.cards').forEach(list=>{
+  list.addEventListener('click',e=>{
+    const c=e.target.closest('.card'); if(!c)return;
+    list.querySelectorAll('.card').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel');
+  });
+});
+
+// tabs
+document.querySelectorAll('.tabs').forEach(t=>{
+  t.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    t.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected','false'));
+    b.setAttribute('aria-selected','true');
+  });
+});
+
+// EN / AR — chrome flips, data stays English
+const AR={
+  brand:'عمليات الأهرامات', tab1:'لوحة اليوم', tab2:'الصيانة', tab3:'فواتير الموردين',
+  note:'نموذج ثابت — ثلاث شاشات، الهيكل حقيقي والبيانات تجريبية.',
+  search:'بحث',
+  g_overview:'نظرة عامة', g_ops:'التشغيل', g_maint:'الصيانة', g_fleet:'المركبات والطاقم', g_fin:'المالية',
+  n_day:'لوحة اليوم', n_fleet:'حالة الأسطول', n_insights:'التحليلات',
+  n_daily:'التشغيل اليومي', n_charging:'جلسات الشحن',
+  n_rfr:'طلبات الإصلاح', n_wo:'أوامر العمل', n_pm:'الصيانة الدورية', n_centers:'مراكز الصيانة',
+  n_veh:'المركبات', n_drv:'السائقون', n_ven:'الموردون', n_rt:'المسارات والمحطات',
+  n_sc:'بطاقات الأداء', n_inv:'الفواتير', n_tpl:'قوالب المؤشرات',
+  h_today:'اليوم · وردية صباحية', filters:'⚟ تصفية',
+  s_out:'حافلات بالخدمة', s_missing:'عداد النهاية ناقص', s_open:'طلبات مفتوحة',
+  p_operating:'تعمل', p_noend:'بدون عداد نهاية', p_repair:'تحت الإصلاح',
+  t_over:'نظرة عامة', t_charge:'الشحن', t_maint:'الصيانة', t_hist:'السجل',
+  k_vendor:'المورد', k_type:'نوع المركبة', k_route:'المسار', k_driver:'السائق',
+  k_shift:'الوردية', k_lic:'انتهاء الرخصة',
+  h_km:'عداد المسافة', h_pmnext:'الصيانة الدورية القادمة',
+  b_end:'تسجيل عداد النهاية', b_rfr:'فتح طلب إصلاح',
+  h_rfrs:'الطلبات المفتوحة',
+  st_active:'نشط', st_pending:'قيد الانتظار', st_snt:'مؤجل للرحلة القادمة', st_rolled:'مرحّل',
+  t_req:'الطلب', t_wos:'أوامر العمل', t_time:'التسلسل الزمني',
+  h_stage:'المرحلة', h_issues:'الأعطال', h_wos:'أوامر العمل',
+  k_req:'تاريخ الطلب', k_veh:'المركبة', k_drvauto:'السائق', k_kmauto:'قراءة العداد',
+  k_loc:'الموقع', k_by:'مقدّم الطلب',
+  w_done:'مكتمل', w_prog:'جارٍ التنفيذ',
+  b_wo:'إنشاء أمر عمل', b_stage:'تغيير المرحلة', b_skip:'تخطي الطلب',
+  h_month:'أغسطس 2026',
+  v_owned:'مملوكة', v_rent:'مستأجرة', v_company:'مملوكة للشركة · تُطبق المؤشرات',
+  v_nokpi:'لكل يوم تشغيل · بدون مؤشرات', v_draft:'مسودة',
+  t_sc:'بطاقة الأداء', t_inv:'الفاتورة', t_tpl:'القالب', sc_draft:'مسودة',
+  th_kpi:'المؤشر', th_w:'الوزن', th_a:'المحقق', th_note:'ملاحظة', th_total:'الإجمالي المحقق',
+  sec_perf:'مؤشرات الأداء', sec_qual:'الجودة والسلامة', sec_disc:'انضباط السائقين',
+  h_inv:'الفاتورة', f_owned:'الرسم الشهري × متوسط الحافلات اليومي × نسبة التحقيق',
+  i_basis:'الأساس', i_rate:'الرسم الشهري للحافلة', i_qty:'متوسط الحافلات اليومي',
+  i_gross:'الإجمالي', i_kpi:'نسبة التحقيق', i_net:'الصافي المستحق',
+  b_approve:'اعتماد البطاقة', b_gen:'إصدار الفاتورة'
+};
+const EN={};
+document.querySelectorAll('[data-i18n]').forEach(el=>EN[el.dataset.i18n]=el.innerHTML);
+
+let ar=false;
+document.getElementById('lang').addEventListener('click',()=>{
+  ar=!ar;
+  const dict = ar?AR:EN;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k=el.dataset.i18n;
+    if(dict[k]!==undefined) el.innerHTML=dict[k];
+  });
+  document.documentElement.lang = ar?'ar':'en';
+  document.documentElement.dir  = ar?'rtl':'ltr';
+  document.getElementById('lang').textContent = ar?'English':'العربية';
+});
+</script>
+</body>
+</html>
