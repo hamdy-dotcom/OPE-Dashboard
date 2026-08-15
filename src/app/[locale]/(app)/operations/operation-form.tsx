@@ -1,0 +1,306 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/lib/i18n/routing";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FormActions,
+  NumberInput,
+  SelectInput,
+  TextArea,
+  TextInput,
+} from "@/components/ui/field";
+import { Micro } from "@/components/ui/micro";
+import { createOperation, updateOperation } from "./actions";
+import { EMPTY_FORM_STATE } from "./schema";
+import { VehiclePicker } from "./vehicle-picker";
+import type {
+  DriverOption,
+  OperationFormValues,
+  PickerOptions,
+  VehicleOption,
+} from "./queries";
+
+/**
+ * Create / edit form. Controlled rather than uncontrolled: React resets a form
+ * once its action settles, and the entered values have to survive a rejected
+ * submit — plus picking a vehicle rewrites two other fields.
+ */
+export function OperationForm({
+  mode,
+  operationId,
+  options,
+  initial,
+  backTo,
+}: {
+  mode: "create" | "edit";
+  operationId?: string;
+  options: PickerOptions;
+  initial: OperationFormValues;
+  /** Query to return to when the form is cancelled. Already free of blanks. */
+  backTo: Record<string, string>;
+}) {
+  const t = useTranslations("operations");
+  const tShift = useTranslations("shift");
+  const tCommon = useTranslations("common");
+
+  const action =
+    mode === "edit" && operationId
+      ? updateOperation.bind(null, operationId)
+      : createOperation;
+
+  const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
+  const [values, setValues] = useState<OperationFormValues>(initial);
+
+  const set = <K extends keyof OperationFormValues>(
+    key: K,
+    value: OperationFormValues[K],
+  ) => setValues((v) => ({ ...v, [key]: value }));
+
+  /**
+   * Choosing a vehicle re-seeds starting KM from vehicles.current_odometer_km
+   * and the driver from default_driver_id. Both stay editable afterwards.
+   */
+  const onVehicle = (vehicle: VehicleOption) =>
+    setValues((v) => ({
+      ...v,
+      vehicleId: vehicle.id,
+      startingKm:
+        vehicle.currentOdometerKm === null ? "" : String(vehicle.currentOdometerKm),
+      driverId: vehicle.defaultDriverId ?? "",
+    }));
+
+  const selectedVehicle =
+    options.vehicles.find((v) => v.id === values.vehicleId) ?? null;
+
+  const startKmIsPrefill =
+    selectedVehicle !== null &&
+    selectedVehicle.currentOdometerKm !== null &&
+    values.startingKm === String(selectedVehicle.currentOdometerKm);
+
+  const driverIsDefault =
+    selectedVehicle !== null &&
+    selectedVehicle.defaultDriverId !== null &&
+    values.driverId === selectedVehicle.defaultDriverId;
+
+  const err = (field: string) => {
+    const key = state.fieldErrors[field];
+    return key ? t(`error.${key}`) : undefined;
+  };
+
+  const driverLabel = (d: DriverOption) => `${d.driverCode} · ${d.driverName}`;
+
+  return (
+    <form action={formAction} className="grid gap-4 px-4 py-4">
+      {state.formError && (
+        <p
+          role="alert"
+          className="rounded-[10px] border border-stop bg-stop-soft px-3 py-2.5 text-[13px] text-stop-text"
+        >
+          {t(`error.${state.formError}`)}
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t("field.date")} htmlFor="operationDate" error={err("operationDate")}>
+          <TextInput
+            id="operationDate"
+            name="operationDate"
+            type="date"
+            required
+            value={values.operationDate}
+            onChange={(e) => set("operationDate", e.target.value)}
+          />
+        </Field>
+
+        <Field label={t("field.shift")} htmlFor="shiftTypeId" error={err("shiftTypeId")}>
+          <SelectInput
+            id="shiftTypeId"
+            name="shiftTypeId"
+            required
+            value={values.shiftTypeId}
+            onChange={(e) => set("shiftTypeId", e.target.value)}
+          >
+            <option value="">{t("choose")}</option>
+            {options.shifts.map((s) => (
+              <option key={s.id} value={s.id}>
+                {tShift.has(s.code) ? tShift(s.code) : s.labelEn}
+              </option>
+            ))}
+          </SelectInput>
+        </Field>
+      </div>
+
+      <VehiclePicker
+        vehicles={options.vehicles}
+        value={values.vehicleId}
+        onChange={onVehicle}
+        error={err("vehicleId")}
+      />
+
+      <Field
+        label={t("field.driver")}
+        htmlFor="driverId"
+        error={err("driverId")}
+        hint={driverIsDefault ? <Micro bar={false}>{t("fromVehicle")}</Micro> : undefined}
+      >
+        <SelectInput
+          id="driverId"
+          name="driverId"
+          required
+          value={values.driverId}
+          onChange={(e) => set("driverId", e.target.value)}
+        >
+          <option value="">{t("choose")}</option>
+          {options.drivers.map((d) => (
+            <option key={d.id} value={d.id}>
+              {driverLabel(d)}
+            </option>
+          ))}
+        </SelectInput>
+      </Field>
+
+      <Field label={t("field.route")} htmlFor="routeId" error={err("routeId")}>
+        <SelectInput
+          id="routeId"
+          name="routeId"
+          value={values.routeId}
+          onChange={(e) => set("routeId", e.target.value)}
+        >
+          <option value="">{tCommon("none")}</option>
+          {options.routes.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.routeCode} · {r.routeName}
+            </option>
+          ))}
+        </SelectInput>
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label={t("field.startingKm")}
+          htmlFor="startingKm"
+          error={err("startingKm")}
+          hint={startKmIsPrefill ? <Micro bar={false}>{t("fromVehicle")}</Micro> : undefined}
+        >
+          <NumberInput
+            id="startingKm"
+            name="startingKm"
+            required
+            min={0}
+            step="0.01"
+            value={values.startingKm}
+            onChange={(e) => set("startingKm", e.target.value)}
+          />
+        </Field>
+
+        <Field
+          label={t("field.endingKm")}
+          htmlFor="endingKm"
+          error={err("endingKm")}
+          hint={<Micro bar={false}>{t("optional")}</Micro>}
+        >
+          <NumberInput
+            id="endingKm"
+            name="endingKm"
+            min={0}
+            step="0.01"
+            value={values.endingKm}
+            onChange={(e) => set("endingKm", e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label={t("field.startingBattery")}
+          htmlFor="startingBatteryPct"
+          error={err("startingBatteryPct")}
+        >
+          <NumberInput
+            id="startingBatteryPct"
+            name="startingBatteryPct"
+            min={0}
+            max={100}
+            step="0.1"
+            value={values.startingBatteryPct}
+            onChange={(e) => set("startingBatteryPct", e.target.value)}
+          />
+        </Field>
+
+        <Field
+          label={t("field.endingBattery")}
+          htmlFor="endingBatteryPct"
+          error={err("endingBatteryPct")}
+        >
+          <NumberInput
+            id="endingBatteryPct"
+            name="endingBatteryPct"
+            min={0}
+            max={100}
+            step="0.1"
+            value={values.endingBatteryPct}
+            onChange={(e) => set("endingBatteryPct", e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label={t("field.operatingPct")}
+          htmlFor="operatingPct"
+          error={err("operatingPct")}
+        >
+          <NumberInput
+            id="operatingPct"
+            name="operatingPct"
+            min={0}
+            max={100}
+            step="0.1"
+            value={values.operatingPct}
+            onChange={(e) => set("operatingPct", e.target.value)}
+          />
+        </Field>
+
+        <Field
+          label={t("field.driverTips")}
+          htmlFor="driverTips"
+          error={err("driverTips")}
+        >
+          <NumberInput
+            id="driverTips"
+            name="driverTips"
+            min={0}
+            step="0.01"
+            value={values.driverTips}
+            onChange={(e) => set("driverTips", e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Field label={t("field.remarks")} htmlFor="remarks" error={err("remarks")}>
+        <TextArea
+          id="remarks"
+          name="remarks"
+          rows={3}
+          value={values.remarks}
+          onChange={(e) => set("remarks", e.target.value)}
+        />
+      </Field>
+
+      <FormActions>
+        <Button type="submit" variant="primary" disabled={pending} className="flex-1 sm:flex-none">
+          {pending ? tCommon("loading") : tCommon("save")}
+        </Button>
+        <Link
+          href={{ pathname: "/operations", query: backTo }}
+          className="flex flex-1 items-center justify-center rounded-[10px] border border-hairline bg-surface px-3.5 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-raise sm:flex-none"
+        >
+          {tCommon("cancel")}
+        </Link>
+      </FormActions>
+    </form>
+  );
+}
