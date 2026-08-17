@@ -161,14 +161,34 @@ all, not see it and get an error.
 2. **Server Components by default.** Reach for `"use client"` only where there is
    real interactivity. Data fetching happens in Server Components.
 3. **Mutations are Server Actions**, validated with zod at the boundary.
-4. **Never duplicate database logic in TypeScript.** Access time, PM status,
+4. **Forms never get their own route.** Creating or editing a record opens in the
+   right-hand detail pane, replacing whatever detail was showing. On desktop the
+   list stays visible beside it; below 1180px the form becomes a full-screen
+   sheet over the list. Drive it from the URL so the pane stays a Server
+   Component — `?mode=new`, `?mode=edit&id=<uuid>`.
+5. **Never duplicate database logic in TypeScript.** Access time, PM status,
    repeat index, invoice math, KPI totals, odometer sync — all live in SQL. Read
    the views and call the functions.
-5. **UI strings are translated; data is not.** Every label goes through next-intl.
+6. **UI strings are translated; data is not.** Every label goes through next-intl.
    Codes, plate numbers, names, and route names stay in English in the database
    and render as-is in both locales.
-6. Tabular figures on every number: the `.tnum` utility.
-7. No `localStorage` for anything that belongs in the database.
+7. Tabular figures on every number: the `.tnum` utility.
+8. No `localStorage` for anything that belongs in the database.
+
+### Notes that have already bitten
+
+**Ambiguous PostgREST embeds.** `work_orders` reaches `profiles` through two
+foreign keys — `assigned_engineer_id` and `created_by` — so a bare
+`profiles ( full_name )` fails with `PGRST201`. Name the key:
+`profiles!assigned_engineer_id ( full_name )`. Before writing any select with an
+embed, check whether the base table has more than one FK to the target.
+
+**`npm run typecheck` does not catch client/server boundary breaks.** Importing a
+value from a module that reaches `next/headers` — `queries.ts`, `auth.ts`, the
+server Supabase client — into a Client Component typechecks fine and fails at
+build. Import from `queries.ts` with `import type` only, and keep shared runtime
+helpers in `lib/format.ts` or another client-safe module. Run `npm run build`
+before calling a module done.
 
 ---
 
@@ -201,18 +221,55 @@ Rules:
 - Card radius 14px, control radius 8–10px.
 
 ### Layout
-Three panes on desktop: nav tree (232px) · record list (340–400px) · detail panel.
-Below 1180px the panes stack, the sidebar becomes a drawer, and the detail panel
-becomes a bottom sheet.
+Two regions: nav tree (232px) and content, which takes all remaining width.
+There is no record-list column. Below `xl` the sidebar hides and the content
+region is the whole screen.
+
+### Lists are tables
+Every list page is one dense table filling the content width — RFRs, work
+orders, operations, vehicles, drivers, vendors, routes, part schedules. One row
+per record. Not cards.
+
+- Header row: 11px, weight 500, `--color-ink-3`, sentence case, sticky
+- Rows: 13px, 1px hairline between, hover `--color-raise`, selected `--color-elev`
+- Codes and every number use `.tnum`; numeric columns align to the inline-end edge
+- A missing value is an em dash in `--color-ink-3`, never a blank cell
+- Status is a `Pill`; time and distance deltas are `Micro` labels
+- Filter chips sit above the table and carry live counts
+- Clicking a header sorts; the sort lives in the URL
+- The empty state spans the table, not a bare row
+
+A table panel passes `clip={false}` to `Panel` so the sticky header works.
+
+### The drawer
+Clicking a row opens a drawer that **overlays** the table from the inline-end
+edge. It does not take a column and does not push the table. The clicked row
+stays visible, gets a 2px accent bar on its inline-start edge and the elevated
+background, and a scrim covers the table behind.
+
+- Width `min(560px, 92vw)`, full height under the topbar, 1px inline-start
+  border, heavy shadow
+- Below `xl` it becomes a full-screen sheet
+- Escape and the scrim close it
+- Viewing, creating and editing all use the same drawer, driven by the URL:
+  `?id=<uuid>` to view, `?mode=new`, `?mode=edit&id=<uuid>`. It stays a Server
+  Component
+- Structure, identical in every module: header with record code, status pill and
+  close button · scrollable body · pinned footer, primary action first
+
+### Form fields
+Any prefilled value carries a 10.5px `--color-ink-3` hint underneath saying
+where it came from — "From last reading", "Default driver for this bus".
 
 ### Components already built in `src/components/ui`
-`Pill` `Micro` `KmMeter` `Panel` `RecordCard` `KeyValue` `StageRail` `Button`
-`Swatch` `DataTable`. Use them. Do not invent a second card or pill style.
+`DataTable` `Drawer` `FilterChips` `Pill` `Micro` `KmMeter` `Panel` `KeyValue`
+`StageRail` `Button` `Field` `VehiclePicker` `Empty` `RecordCard` (day board
+only). Use them. Never fork a second table, drawer or pill style.
 
 ### Signature element — the KM meter
-On every vehicle card and vehicle detail: `241,780 → 242,109` with the day's
-distance, and a hairline bar underneath showing progress toward the nearest due
-PM item. Bar is ink when healthy, amber at `due_soon`, red when `overdue`.
+On the vehicle drawer: `241,780 → 242,109` with the day's distance, and a
+hairline bar underneath showing progress toward the nearest due PM item. Bar is
+ink when healthy, amber at `due_soon`, red when `overdue`.
 
 ---
 
@@ -267,13 +324,25 @@ select v.vehicle_code, fn_init_pm_schedules(v.id) from vehicles v;
 
 ---
 
-## 8. Open questions — ask before assuming
+## 8. Settled decisions and deferred work
 
-These are unresolved. If a task touches one, ask rather than guessing.
+### Settled — treat these as decided
 
-- Is `Al Tayaar` a separate vendor row, or a label on company-owned buses?
-- Does the fixed monthly fee prorate for a bus that joins or leaves mid-month?
-- Trip status values — the lookup category exists but has no seeded values, and
-  there is no trips module, so this may be dead. Confirm before using it.
-- SLA target for the Lead Time KPI — access time is measured but nothing is
-  compared against a target yet.
+- **`Al Tayaar` is a separate vendor row**, not a label on company-owned buses.
+  It gets its own `vendors` record like any other.
+- **The monthly fee is the average of all operated buses × the monthly fee.**
+  There is no proration for a bus joining or leaving mid-month — the average
+  already accounts for it. This is exactly what `per_avg_bus_month` does in
+  `fn_generate_invoice`, so nothing in the code changes.
+- **The Lead Time KPI is entered by hand.** It is based on trips logic, which
+  does not exist. Access time *is* measured — `fn_rfr_access_minutes` and
+  `v_rfr_access_time` — but it is deliberately compared against no target, and
+  no SLA threshold is configured anywhere. Do not wire access time into the
+  Lead Time KPI or invent a target for it.
+
+### Deferred — do not build against these
+
+- **There is no trips module and none is planned.** The `trip_status` lookup
+  category exists with no seeded values and nothing reads it. Leave it alone:
+  do not seed it, do not surface it, and do not treat its presence as a sign
+  that trips are coming.

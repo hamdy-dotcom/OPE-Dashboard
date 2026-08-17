@@ -1,0 +1,112 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { DataTable, orDash, type Column } from "@/components/ui/data-table";
+import { Empty } from "@/components/ui/empty";
+import { Micro } from "@/components/ui/micro";
+import { Pill } from "@/components/ui/pill";
+import { expiryState, expiryTone, km } from "@/lib/format";
+import type { VehicleRow } from "./queries";
+
+export function VehiclesTable({
+  rows,
+  selectedId,
+  query,
+  sort,
+  dir,
+}: {
+  rows: VehicleRow[];
+  selectedId: string | null;
+  query: Record<string, string>;
+  sort: string;
+  dir: string;
+}) {
+  const t = useTranslations("master");
+  const tVehicle = useTranslations("vehicle");
+  const tCommon = useTranslations("common");
+
+  const columns: Column<VehicleRow>[] = [
+    {
+      key: "code",
+      header: t("field.vehicleCode"),
+      sortValue: (r) => r.vehicleCode,
+      cell: (r) => <span className="tnum font-medium">{r.vehicleCode}</span>,
+    },
+    {
+      key: "plate",
+      header: t("field.plateNumber"),
+      sortValue: (r) => r.plateNumber,
+      cell: (r) => <span className="tnum">{r.plateNumber}</span>,
+    },
+    {
+      key: "vendor",
+      header: tVehicle("vendor"),
+      className: "hidden md:table-cell",
+      sortValue: (r) => r.vendorName,
+      cell: (r) => orDash(r.vendorName),
+    },
+    {
+      key: "type",
+      header: tVehicle("type"),
+      className: "hidden lg:table-cell",
+      sortValue: (r) => r.vehicleTypeLabel,
+      cell: (r) => orDash(r.vehicleTypeLabel),
+    },
+    {
+      key: "driver",
+      header: t("field.defaultDriver"),
+      className: "hidden lg:table-cell",
+      sortValue: (r) => r.defaultDriverName,
+      cell: (r) => orDash(r.defaultDriverName),
+    },
+    {
+      key: "odometer",
+      header: tVehicle("odometer"),
+      numeric: true,
+      sortValue: (r) => r.currentOdometerKm,
+      cell: (r) => (r.currentOdometerKm === null ? orDash(null) : km(r.currentOdometerKm)),
+    },
+    {
+      key: "licence",
+      header: tVehicle("licenseExpiry"),
+      className: "hidden sm:table-cell",
+      sortValue: (r) => r.licenseExpiryDate,
+      cell: (r) => {
+        if (!r.licenseExpiryDate) return orDash(null);
+        const state = expiryState(r.licenseExpiryDate);
+        if (state === "ok" || state === "unknown") {
+          return <span className="tnum">{r.licenseExpiryDate}</span>;
+        }
+        return (
+          <Micro tone={expiryTone(state)}>
+            {state === "expired" ? t("licenceExpired") : t("licenceExpiring")}
+          </Micro>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: t("field.status"),
+      sortValue: (r) => r.statusLabel,
+      cell: (r) =>
+        r.statusLabel ? (
+          <Pill tone={r.statusCode === "active" ? "go" : "idle"}>{r.statusLabel}</Pill>
+        ) : (
+          orDash(null)
+        ),
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      rows={rows}
+      selectedId={selectedId}
+      pathname="/vehicles"
+      query={query}
+      sort={sort}
+      dir={dir}
+      empty={<Empty title={tCommon("empty")} hint={tCommon("emptyHint")} />}
+    />
+  );
+}

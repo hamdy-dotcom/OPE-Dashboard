@@ -27,6 +27,52 @@ export function duration(minutes: number | null | undefined): string {
   return [d ? `${d}d` : "", h ? `${h}h` : "", `${mm}m`].filter(Boolean).join(" ");
 }
 
+/**
+ * A stored `timestamptz` as the value a `datetime-local` input expects, in the
+ * caller's own timezone. Client-side only — on the server this renders in the
+ * server's zone, which is not the one the user is reading.
+ */
+export function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours(),
+  )}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Document expiry, for licences and tourism IDs. Amber inside 30 days, red once
+ * the date has passed. Purely presentational — nothing in the database tracks
+ * this, so there is no view to defer to.
+ */
+export const EXPIRY_WARNING_DAYS = 30;
+
+export type ExpiryState = "expired" | "expiring" | "ok" | "unknown";
+
+export function expiryState(
+  date: string | null | undefined,
+  today = new Date(),
+): ExpiryState {
+  if (!date) return "unknown";
+  const parsed = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed)) return "unknown";
+
+  const midnight = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const days = Math.floor((parsed - midnight) / 86_400_000);
+
+  if (days < 0) return "expired";
+  if (days <= EXPIRY_WARNING_DAYS) return "expiring";
+  return "ok";
+}
+
+export const expiryTone = (s: ExpiryState): "neutral" | "warn" | "stop" =>
+  s === "expired" ? "stop" : s === "expiring" ? "warn" : "neutral";
+
 export type PmStatus =
   | "never_serviced"
   | "no_km_data"

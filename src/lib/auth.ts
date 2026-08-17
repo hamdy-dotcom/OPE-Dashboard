@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { AppRole } from "@/lib/roles";
 
-export type AppRole = "super_admin" | "admin" | "supervisor" | "data_admin";
+export type { AppRole };
 
 export type CurrentUser = {
   id: string;
@@ -45,15 +46,6 @@ export async function requireUser(locale: string): Promise<CurrentUser> {
   };
 }
 
-/* --- capability helpers. Mirror the RLS policies, never replace them. --- */
+/* --- capability helpers live in `roles.ts` so client code can read them --- */
 
-export const canWriteOps = (r: AppRole) =>
-  r === "super_admin" || r === "supervisor" || r === "data_admin";
-
-export const canWriteMaster = (r: AppRole) =>
-  r === "super_admin" || r === "supervisor";
-
-export const canSeeMoney = (r: AppRole) =>
-  r === "super_admin" || r === "admin" || r === "supervisor";
-
-export const isSuper = (r: AppRole) => r === "super_admin";
+export { canWriteOps, canWriteMaster, canSeeMoney, isSuper } from "@/lib/roles";

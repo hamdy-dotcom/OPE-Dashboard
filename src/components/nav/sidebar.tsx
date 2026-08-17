@@ -1,6 +1,8 @@
-import { getTranslations } from "next-intl/server";
-import { Link } from "@/lib/i18n/routing";
-import { canSeeMoney, canWriteMaster, isSuper, type AppRole } from "@/lib/auth";
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Link, usePathname } from "@/lib/i18n/routing";
+import { canSeeMoney, isSuper, type AppRole } from "@/lib/roles";
 
 type Item = { href: string; label: string; count?: number };
 type Group = { label: string; items: Item[] };
@@ -8,15 +10,17 @@ type Group = { label: string; items: Item[] };
 /**
  * Role-aware nav tree. A role that cannot use a section never sees it —
  * hiding beats showing-then-erroring.
+ *
+ * Client-side because the active item comes from the pathname, which a Server
+ * Component cannot read.
  */
-export async function Sidebar({
-  role,
-  active,
-}: {
-  role: AppRole;
-  active: string;
-}) {
-  const t = await getTranslations("nav");
+export function Sidebar({ role }: { role: AppRole }) {
+  const t = useTranslations("nav");
+  const pathname = usePathname();
+
+  // next-intl already strips the locale, but a raw `/en/...` is handled too so
+  // the highlight never depends on which navigation API got us here.
+  const segment = `/${pathname.replace(/^\/(en|ar)(?=\/|$)/, "").split("/")[1] ?? ""}`;
 
   const groups: Group[] = [
     {
@@ -39,16 +43,14 @@ export async function Sidebar({
       ],
     },
     {
+      // All master data is readable by every role; the write gates live on the
+      // pages and in the Server Actions, not here.
       label: t("fleet"),
       items: [
         { href: "/vehicles", label: t("vehicles") },
         { href: "/drivers", label: t("drivers") },
-        ...(canWriteMaster(role)
-          ? [
-              { href: "/vendors", label: t("vendors") },
-              { href: "/routes", label: t("routes") },
-            ]
-          : []),
+        { href: "/vendors", label: t("vendors") },
+        { href: "/routes", label: t("routes") },
       ],
     },
   ];
@@ -78,11 +80,14 @@ export async function Sidebar({
             {g.label}
           </p>
           {g.items.map((item) => {
-            const isActive = active.startsWith(item.href);
+            // Segment match, not prefix match: /operations?mode=new stays
+            // highlighted, and /routes never lights up /rfrs.
+            const isActive = segment === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13.5px] transition-colors ${
                   isActive
                     ? "bg-elev font-medium text-ink"

@@ -13,9 +13,9 @@ import {
   TextInput,
 } from "@/components/ui/field";
 import { Micro } from "@/components/ui/micro";
+import { VehiclePicker } from "@/components/ui/vehicle-picker";
 import { createOperation, updateOperation } from "./actions";
 import { EMPTY_FORM_STATE } from "./schema";
-import { VehiclePicker } from "./vehicle-picker";
 import type {
   DriverOption,
   OperationFormValues,
@@ -138,13 +138,19 @@ export function OperationForm({
         value={values.vehicleId}
         onChange={onVehicle}
         error={err("vehicleId")}
+        labels={{
+          field: t("field.vehicle"),
+          search: t("searchVehicles"),
+          noMatch: t("noVehicleMatch"),
+          odometer: (formatted) => t("odometerNow", { km: formatted }),
+        }}
       />
 
       <Field
         label={t("field.driver")}
         htmlFor="driverId"
         error={err("driverId")}
-        hint={driverIsDefault ? <Micro bar={false}>{t("fromVehicle")}</Micro> : undefined}
+        source={driverIsDefault ? t("source.driver") : undefined}
       >
         <SelectInput
           id="driverId"
@@ -183,7 +189,7 @@ export function OperationForm({
           label={t("field.startingKm")}
           htmlFor="startingKm"
           error={err("startingKm")}
-          hint={startKmIsPrefill ? <Micro bar={false}>{t("fromVehicle")}</Micro> : undefined}
+          source={startKmIsPrefill ? t("source.odometer") : undefined}
         >
           <NumberInput
             id="startingKm"
@@ -291,12 +297,12 @@ export function OperationForm({
       </Field>
 
       <FormActions>
-        <Button type="submit" variant="primary" disabled={pending} className="flex-1 sm:flex-none">
+        <Button type="submit" variant="primary" disabled={pending} className="flex-1 xl:flex-none">
           {pending ? tCommon("loading") : tCommon("save")}
         </Button>
         <Link
           href={{ pathname: "/operations", query: backTo }}
-          className="flex flex-1 items-center justify-center rounded-[10px] border border-hairline bg-surface px-3.5 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-raise sm:flex-none"
+          className="flex flex-1 items-center justify-center rounded-[10px] border border-hairline bg-surface px-3.5 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-raise xl:flex-none"
         >
           {tCommon("cancel")}
         </Link>

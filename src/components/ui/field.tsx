@@ -16,12 +16,19 @@ const CONTROL =
 export function Field({
   label,
   hint,
+  source,
   error,
   htmlFor,
   children,
 }: {
   label: ReactNode;
   hint?: ReactNode;
+  /**
+   * Where a prefilled value came from — "From last reading", "Default driver
+   * for this bus". Sits under the control so the number above it is never
+   * mistaken for something the user typed.
+   */
+  source?: ReactNode;
   error?: string;
   htmlFor?: string;
   children: ReactNode;
@@ -36,6 +43,7 @@ export function Field({
         {hint}
       </label>
       {children}
+      {source && <p className="text-[10.5px] text-ink-3">{source}</p>}
       {error && (
         <p role="alert" className="text-[12px] text-stop-text">
           {error}
@@ -49,11 +57,13 @@ export function Field({
 export function FieldGroup({
   label,
   hint,
+  source,
   error,
   children,
 }: {
   label: ReactNode;
   hint?: ReactNode;
+  source?: ReactNode;
   error?: string;
   children: ReactNode;
 }) {
@@ -64,6 +74,7 @@ export function FieldGroup({
         {hint}
       </legend>
       {children}
+      {source && <p className="text-[10.5px] text-ink-3">{source}</p>}
       {error && (
         <p role="alert" className="text-[12px] text-stop-text">
           {error}
@@ -114,10 +125,15 @@ export function TextArea({
   return <textarea {...rest} className={`${CONTROL} ${className}`} />;
 }
 
-/** Sticky footer so Save stays in reach on a long mobile form. */
+/**
+ * The drawer's pinned action bar, primary action first. A form owns its own
+ * footer rather than using the drawer's `footer` slot, because the submit
+ * button has to sit inside the `<form>` to carry its pending state — sticking
+ * to the bottom of the drawer's scroll area puts it in the same place.
+ */
 export function FormActions({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 -mx-4 mt-2 flex flex-wrap gap-2.5 border-t border-hairline bg-surface px-4 py-3.5 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0">
+    <div className="sticky bottom-0 -mx-4 -mb-4 mt-2 flex flex-wrap gap-2.5 border-t border-hairline bg-surface px-4 py-3.5">
       {children}
     </div>
   );

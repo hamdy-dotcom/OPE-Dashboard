@@ -4,8 +4,9 @@ import { Sidebar } from "@/components/nav/sidebar";
 import { Topbar } from "@/components/nav/topbar";
 
 /**
- * Three-pane shell: nav tree · record list · detail panel.
- * Panes stack below 1180px.
+ * Two regions: the nav tree and the content, which takes everything else.
+ * There is no record-list column — list pages are full-width tables and the
+ * detail drawer overlays them rather than taking a third column.
  */
 export default async function AppLayout({
   children,
@@ -20,9 +21,9 @@ export default async function AppLayout({
   return (
     <>
       <Topbar user={user} />
-      <div className="grid items-start gap-3.5 px-5 pb-7 pt-3.5 xl:grid-cols-[232px_minmax(340px,400px)_minmax(0,1fr)]">
+      <div className="grid items-start gap-3.5 px-5 pb-7 pt-3.5 xl:grid-cols-[232px_minmax(0,1fr)]">
         <div className="hidden xl:block">
-          <Sidebar role={user.role} active="/day-board" />
+          <Sidebar role={user.role} />
         </div>
         {children}
       </div>

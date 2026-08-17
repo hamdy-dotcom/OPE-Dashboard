@@ -1,0 +1,263 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "@/lib/i18n/routing";
+import { createClient } from "@/lib/supabase/server";
+import { guardMaster, isDenied } from "@/lib/master";
+import { dbErrorToState, firstFieldErrors, type FormState } from "@/lib/forms";
+import {
+  parseRouteForm,
+  parseRouteStationsForm,
+  parseStationForm,
+  type RouteInput,
+  type StationInput,
+} from "./schema";
+
+const ROUTE_UNIQUE = { route_code: "routeCode" };
+const STATION_UNIQUE = { station_code: "stationCode" };
+
+const routeRow = (input: RouteInput) => ({
+  route_code: input.routeCode,
+  route_name: input.routeName,
+  route_distance_km: input.routeDistanceKm,
+  number_of_stations: input.numberOfStations,
+  standard_leg_time: input.standardLegTime,
+  standard_round_trip_time: input.standardRoundTripTime,
+  status_id: input.statusId,
+});
+
+const stationRow = (input: StationInput) => ({
+  station_code: input.stationCode,
+  station_name: input.stationName,
+  status_id: input.statusId,
+});
+
+/* ---------------- routes ---------------- */
+
+export async function createRoute(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardMaster();
+  if (isDenied(gate)) return gate;
+
+  const parsed = parseRouteForm(formData);
+  if (!parsed.success) {
+    return { formError: null, fieldErrors: firstFieldErrors(parsed.error) };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("routes")
+    .insert(routeRow(parsed.data))
+    .select("id")
+    .single();
+
+  if (error) return dbErrorToState(error, ROUTE_UNIQUE);
+
+  revalidatePath("/[locale]/routes", "page");
+  return redirect({
+    href: { pathname: "/routes", query: { selected: data.id } },
+    locale: gate.locale,
+  });
+}
+
+export async function updateRoute(
+  id: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardMaster();
+  if (isDenied(gate)) return gate;
+
+  const parsed = parseRouteForm(formData);
+  if (!parsed.success) {
+    return { formError: null, fieldErrors: firstFieldErrors(parsed.error) };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("routes").update(routeRow(parsed.data)).eq("id", id);
+
+  if (error) return dbErrorToState(error, ROUTE_UNIQUE);
+
+  revalidatePath("/[locale]/routes", "page");
+  return redirect({
+    href: { pathname: "/routes", query: { selected: id } },
+    locale: gate.locale,
+  });
+}
+
+/* ---------------- stations ---------------- */
+
+export async function createStation(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardMaster();
+  if (isDenied(gate)) return gate;
+
+  const parsed = parseStationForm(formData);
+  if (!parsed.success) {
+    return { formError: null, fieldErrors: firstFieldErrors(parsed.error) };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("stations")
+    .insert(stationRow(parsed.data))
+    .select("id")
+    .single();
+
+  if (error) return dbErrorToState(error, STATION_UNIQUE);
+
+  revalidatePath("/[locale]/routes", "page");
+  return redirect({
+    href: { pathname: "/routes", query: { entity: "stations", selected: data.id } },
+    locale: gate.locale,
+  });
+}
+
+export async function updateStation(
+  id: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardMaster();
+  if (isDenied(gate)) return gate;
+
+  const parsed = parseStationForm(formData);
+  if (!parsed.success) {
+    return { formError: null, fieldErrors: firstFieldErrors(parsed.error) };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("stations")
+    .update(stationRow(parsed.data))
+    .eq("id", id);
+
+  if (error) return dbErrorToState(error, STATION_UNIQUE);
+
+  revalidatePath("/[locale]/routes", "page");
+  return redirect({
+    href: { pathname: "/routes", query: { entity: "stations", selected: id } },
+    locale: gate.locale,
+  });
+}
+
+/* ---------------- the stop list ---------------- */
+
+type Stop = { id: string; station_id: string };
+
+/**
+ * Rewrites a route's sequence numbers to 1..n in the given order.
+ *
+ * `unique (route_id, sequence_number)` is not deferrable, so the rows are first
+ * parked on negative numbers — which no live row can hold — and only then given
+ * their final positions. Two statements, no intermediate collision.
+ */
+async function renumber(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  routeId: string,
+  ordered: Stop[],
+) {
+  const rows = (sequence: (index: number) => number) =>
+    ordered.map((stop, index) => ({
+      id: stop.id,
+      route_id: routeId,
+      station_id: stop.station_id,
+      sequence_number: sequence(index),
+    }));
+
+  const parked = await supabase.from("route_stations").upsert(rows((i) => -(i + 1)));
+  if (parked.error) return parked.error;
+
+  const settled = await supabase.from("route_stations").upsert(rows((i) => i + 1));
+  return settled.error;
+}
+
+async function currentStops(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  routeId: string,
+): Promise<Stop[]> {
+  const { data } = await supabase
+    .from("route_stations")
+    .select("id, station_id")
+    .eq("route_id", routeId)
+    .order("sequence_number");
+
+  return (data ?? []).map((s) => ({ id: s.id, station_id: s.station_id }));
+}
+
+/**
+ * Add, reorder and remove all arrive here so the editor has one error surface.
+ * Reordering rewrites the whole route rather than swapping a pair, which keeps
+ * the sequence gap-free.
+ */
+export async function editRouteStations(
+  routeId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardMaster();
+  if (isDenied(gate)) return gate;
+
+  const parsed = parseRouteStationsForm(formData);
+  if (!parsed.success) {
+    return { formError: "saveFailed", fieldErrors: {} };
+  }
+
+  const { intent, stationId, routeStationId } = parsed.data;
+  const supabase = await createClient();
+  const stops = await currentStops(supabase, routeId);
+
+  if (intent === "add") {
+    if (!stationId) return { formError: null, fieldErrors: { stationId: "required" } };
+    if (stops.some((s) => s.station_id === stationId)) {
+      return { formError: null, fieldErrors: { stationId: "stationAlreadyOnRoute" } };
+    }
+
+    const { error } = await supabase.from("route_stations").insert({
+      route_id: routeId,
+      station_id: stationId,
+      sequence_number: stops.length + 1,
+    });
+
+    if (error) return dbErrorToState(error);
+    revalidatePath("/[locale]/routes", "page");
+    return { formError: null, fieldErrors: {} };
+  }
+
+  const index = stops.findIndex((s) => s.id === routeStationId);
+  if (index === -1) return { formError: "saveFailed", fieldErrors: {} };
+
+  if (intent === "remove") {
+    const { error } = await supabase
+      .from("route_stations")
+      .delete()
+      .eq("id", stops[index].id);
+
+    if (error) return dbErrorToState(error);
+
+    const remaining = stops.filter((_, i) => i !== index);
+    const renumberError = await renumber(supabase, routeId, remaining);
+    if (renumberError) return dbErrorToState(renumberError);
+
+    revalidatePath("/[locale]/routes", "page");
+    return { formError: null, fieldErrors: {} };
+  }
+
+  const target = intent === "moveUp" ? index - 1 : index + 1;
+  if (target < 0 || target >= stops.length) {
+    return { formError: null, fieldErrors: {} };
+  }
+
+  const reordered = [...stops];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+  const renumberError = await renumber(supabase, routeId, reordered);
+  if (renumberError) return dbErrorToState(renumberError);
+
+  revalidatePath("/[locale]/routes", "page");
+  return { formError: null, fieldErrors: {} };
+}

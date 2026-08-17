@@ -44,6 +44,8 @@ export type OperationRow = {
   routeCode: string | null;
   startKm: number | null;
   endKm: number | null;
+  /** The generated column, not end-minus-start worked out here. */
+  distanceKm: number | null;
   operatingPct: number | null;
   batteryStart: number | null;
   batteryEnd: number | null;
@@ -78,6 +80,7 @@ const SELECT = `
   operating_percentage,
   starting_odometer_km,
   ending_odometer_km,
+  total_distance_km,
   starting_battery_pct,
   ending_battery_pct,
   driver_tips,
@@ -123,6 +126,7 @@ function toRow(o: any): OperationRow {
     routeCode: route?.route_code ?? null,
     startKm: num(o.starting_odometer_km),
     endKm: num(o.ending_odometer_km),
+    distanceKm: num(o.total_distance_km),
     operatingPct: num(o.operating_percentage),
     batteryStart: num(o.starting_battery_pct),
     batteryEnd: num(o.ending_battery_pct),

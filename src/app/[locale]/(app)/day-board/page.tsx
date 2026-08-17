@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { Panel, PanelHead, Section } from "@/components/ui/panel";
+import { Panel, PanelHead } from "@/components/ui/panel";
 import { StatBar, Stat } from "@/components/ui/stat";
 import { Empty } from "@/components/ui/empty";
 import { OperationList, type OperationRow } from "./operation-list";
@@ -67,15 +67,29 @@ export default async function DayBoardPage({
 
   const missingEndKm = rows.filter((r) => r.endKm === null).length;
 
-  const { count: openRfrs } = await supabase
+  // Open means the stage is neither Completed nor Skipped. Counting on
+  // completed_at counts the closed ones instead.
+  const { data: closedStages } = await supabase
+    .from("lookups")
+    .select("id")
+    .eq("category", "rfr_stage")
+    .in("code", ["completed", "skipped"]);
+
+  const closedStageIds = (closedStages ?? []).map((s) => s.id);
+
+  let openRfrsQuery = supabase
     .from("rfrs")
-    .select("id", { count: "exact", head: true })
-    .not("completed_at", "is", null);
+    .select("id", { count: "exact", head: true });
+
+  if (closedStageIds.length > 0) {
+    openRfrsQuery = openRfrsQuery.not("stage_id", "in", `(${closedStageIds.join(",")})`);
+  }
+
+  const { count: openRfrs } = await openRfrsQuery;
 
   return (
-    <>
-      <Panel>
-        <PanelHead title={`${t("dayBoard.title")} · ${day}`} />
+    <Panel>
+      <PanelHead title={`${t("dayBoard.title")} · ${day}`} />
         <StatBar>
           <Stat label={t("dayBoard.busesOut")} value={rows.length} />
           <Stat
@@ -95,15 +109,6 @@ export default async function DayBoardPage({
         ) : (
           <OperationList rows={rows} />
         )}
-      </Panel>
-
-      <Panel className="hidden xl:block">
-        <Section title={t("vehicle.odometer")}>
-          <p className="text-[13px] text-ink-3">
-            {t("common.emptyHint")}
-          </p>
-        </Section>
-      </Panel>
-    </>
+    </Panel>
   );
 }
