@@ -1,4 +1,5 @@
 "use client";
+import type { QueryParams } from "@/lib/filters";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/lib/i18n/routing";
@@ -18,7 +19,7 @@ export function ListSearch({
   value: string;
   placeholder: string;
   /** Filters that should survive a search, e.g. which entity is listed. */
-  extraQuery?: Record<string, string>;
+  extraQuery?: QueryParams;
 }) {
   const router = useRouter();
   const [term, setTerm] = useState(value);
@@ -30,7 +31,7 @@ export function ListSearch({
 
     const timer = setTimeout(() => {
       committed.current = term;
-      const query: Record<string, string> = { ...extraQuery };
+      const query: QueryParams = { ...extraQuery };
       if (term.trim()) query.q = term.trim();
       start(() => router.replace({ pathname, query }));
     }, 300);

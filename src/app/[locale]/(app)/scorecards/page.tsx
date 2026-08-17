@@ -4,7 +4,12 @@ import { Link } from "@/lib/i18n/routing";
 import { canSeeMoney, isSuper, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
 import { FilterChips, type Chip } from "@/components/ui/filter-chips";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
 import { loadScorecards, loadVendorsWithTemplates } from "./queries";
+import { buildScorecardFilters } from "./filters";
 import { ScorecardsTable } from "./scorecards-table";
 import { ScorecardDrawer } from "./scorecard-drawer";
 import { OpenMonth } from "./open-month";
@@ -12,28 +17,25 @@ import { OpenMonth } from "./open-month";
 const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
 
-/**
- * Vendor scorecards. Templates and monthly snapshots are separate lists —
- * a template is the vendor's editable KPI set, a month is a frozen copy of it.
- *
- * `super_admin` writes; admin and supervisor read. `data_admin` has no finance
- * access at all and never reaches this page.
- */
 export default async function ScorecardsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    kind?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const { kind: kindParam, id, mode, sort = "", dir = "asc" } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
+  const kind = one("kind") === "templates" ? "templates" : "months";
+  const moduleKey = kind === "templates" ? "scorecards:templates" : "scorecards";
 
   const user = await requireUser(locale);
   if (!canSeeMoney(user.role)) notFound();
@@ -41,35 +43,61 @@ export default async function ScorecardsPage({
   const t = await getTranslations("scorecard");
   const canEdit = isSuper(user.role);
 
-  const kind = kindParam === "templates" ? "templates" : "months";
-
-  const [months, templates, vendorInfo] = await Promise.all([
+  const [months, templates, vendorInfo, { state: filterState, saved }] = await Promise.all([
     loadScorecards("months"),
     loadScorecards("templates"),
     loadVendorsWithTemplates(),
+    resolveFilters(moduleKey, sp),
   ]);
 
-  const rows = kind === "templates" ? templates : months;
+  const source = kind === "templates" ? templates : months;
+
+  const filters = buildScorecardFilters(
+    {
+      vendor: t("field.vendor"),
+      periodMonth: t("field.periodMonth"),
+      totalAchieved: t("field.totalAchieved"),
+      approvedBy: t("field.approvedBy"),
+      sections: t("field.sections"),
+      kpiLines: t("field.kpiLines"),
+      sectionsWeight: t("field.sectionsWeight"),
+      status: t("field.status"),
+      statusDraft: t("status.draft"),
+      statusSubmitted: t("status.submitted"),
+      statusApproved: t("status.approved"),
+      statusReopened: t("status.reopened"),
+    },
+    {
+      kind,
+      vendors: vendorInfo.vendors.map((v) => ({
+        value: v.id,
+        label: `${v.vendorCode} · ${v.vendorName}`,
+      })),
+      rows: source,
+    },
+  );
+
+  const rows = applyFilters(source, filters, filterState);
 
   const chips: Chip[] = [
     { value: "", label: t("monthsTab"), count: months.length },
     { value: "templates", label: t("templatesTab"), count: templates.length },
   ];
 
-  // Only vendors without one can take a new template — the partial unique
-  // index allows a single template per vendor.
   const vendorsWithoutTemplate = vendorInfo.vendors.filter(
     (v) => !vendorInfo.withTemplate.includes(v.id),
   );
 
   const drawerMode = canEdit && mode === "new" ? "new" : id ? "view" : null;
 
-  const query: Record<string, string> = {};
-  if (kind === "templates") query.kind = "templates";
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
+  if (kind === "templates") baseQuery.kind = "templates";
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   return (
     <>
@@ -93,11 +121,29 @@ export default async function ScorecardsPage({
           }
         />
 
+        <FilterBar
+          pathname="/scorecards"
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("searchPlaceholder")}
+          savedViews={
+            <SavedViewsTabs
+              module={moduleKey}
+              pathname="/scorecards"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
+        />
+
         <FilterChips
           chips={chips}
           active={kind === "templates" ? "templates" : ""}
           param="kind"
           pathname="/scorecards"
+          extraQuery={filterQuery}
         />
 
         <ScorecardsTable

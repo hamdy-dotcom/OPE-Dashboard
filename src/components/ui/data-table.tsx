@@ -1,4 +1,5 @@
 "use client";
+import type { QueryParams } from "@/lib/filters";
 
 import { type ReactNode, useMemo, useOptimistic, useTransition } from "react";
 import { useRouter } from "@/lib/i18n/routing";
@@ -60,7 +61,7 @@ export function DataTable<T extends { id: string }>({
   selectedId: string | null;
   pathname: string;
   /** Filters to preserve when selecting a row or re-sorting. */
-  query?: Record<string, string>;
+  query?: QueryParams;
   sort?: string;
   dir?: string;
   empty: ReactNode;

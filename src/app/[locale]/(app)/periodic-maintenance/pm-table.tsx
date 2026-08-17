@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useTranslations } from "next-intl";
 import { DataTable, orDash, type Column } from "@/components/ui/data-table";
 import { Empty } from "@/components/ui/empty";
@@ -34,7 +35,7 @@ export function PmTable({
 }: {
   rows: PmRow[];
   selectedVehicleId: string | null;
-  query: Record<string, string>;
+  query: QueryParams;
   sort: string;
   dir: string;
 }) {

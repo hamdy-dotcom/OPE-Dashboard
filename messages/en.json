@@ -64,7 +64,6 @@
     "edit": "Edit operation",
     "record": "Record",
     "missingEndKm": "Missing end KM",
-    "allShifts": "All shifts",
     "clearFilters": "Clear",
     "choose": "Choose",
     "optional": "optional",
@@ -111,7 +110,10 @@
       "driver": "Default driver for this bus"
     },
     "kmDelta": "+{km} km",
-    "batteryRange": "{from} → {to}%"
+    "batteryRange": "{from} → {to}%",
+    "vendorLabel": "Vendor",
+    "statusOperating": "Operating",
+    "searchPlaceholder": "Search code, vehicle, plate, driver or vendor"
   },
   "master": {
     "record": "Record",
@@ -161,7 +163,6 @@
     "kpiApplies": "KPI applies",
     "kpiDoesNotApply": "No KPI",
     "applyKpiHint": "Scales the monthly total by the achieved scorecard percentage.",
-    "withoutTerms": "Without terms",
     "routesTitle": "Routes",
     "stationsTitle": "Stations",
     "routesTab": "Routes",
@@ -322,7 +323,8 @@
     },
     "field": {
       "number": "Request"
-    }
+    },
+    "searchPlaceholder": "Search request, vehicle, plate, driver or location"
   },
   "finance": {
     "scorecard": "Scorecard",
@@ -389,7 +391,6 @@
     "repair": "Repair",
     "replacedParts": "Replaced parts",
     "repeatIndex": "Repeating index",
-    "allWorkOrders": "All",
     "search": "Search work order, request or vehicle",
     "emptyHint": "Work orders are raised from a request.",
     "noSelection": "No work order selected",
@@ -455,9 +456,6 @@
     "new": "New session",
     "edit": "Edit session",
     "session": "Session",
-    "allSessions": "All",
-    "openSessions": "Still charging",
-    "plugLabel": "Plug {plug}",
     "search": "Search session, vehicle or charger",
     "chooseCharger": "Choose a charger",
     "plugsHint": "A, B or both",
@@ -500,7 +498,8 @@
       "stillReferenced": "Other records still point at this one.",
       "forbidden": "Your role cannot change charging sessions.",
       "saveFailed": "The session could not be saved. Try again."
-    }
+    },
+    "finished": "Finished"
   },
   "scorecard": {
     "title": "Monthly scorecards",
@@ -576,7 +575,8 @@
     "newTemplate": "New template",
     "newTemplateHint": "A vendor KPI set. Opening a month copies it.",
     "createTemplate": "Create template",
-    "allVendorsHaveTemplates": "Every vendor already has a KPI template."
+    "allVendorsHaveTemplates": "Every vendor already has a KPI template.",
+    "searchPlaceholder": "Search vendor"
   },
   "invoice": {
     "title": "Invoices",
@@ -632,7 +632,8 @@
       "negative": "Cannot be negative.",
       "duplicate": "That value is already used by another record.",
       "stillReferenced": "Other records still point at this one."
-    }
+    },
+    "searchPlaceholder": "Search vendor or code"
   },
   "settings": {
     "usersTitle": "Users and roles",
@@ -690,6 +691,74 @@
       "forbidden": "Only the planning manager can change settings.",
       "saveFailed": "The change could not be saved. Try again.",
       "stillReferenced": "Other records still point at this one."
-    }
+    },
+    "searchLookups": "Search code or label"
+  },
+  "filters": {
+    "search": "Search",
+    "searchOptions": "Search options",
+    "noOptions": "No matching options",
+    "yes": "Yes",
+    "no": "No",
+    "min": "Min",
+    "max": "Max",
+    "from": "from",
+    "to": "to",
+    "clear": "Clear",
+    "clearAll": "Clear all",
+    "anyDate": "Any date",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "save": "Save",
+    "saving": "Saving",
+    "cancel": "Cancel",
+    "rename": "Rename",
+    "delete": "Delete",
+    "setDefault": "Use on landing",
+    "unsetDefault": "Stop using on landing",
+    "default": "default",
+    "preset": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This week",
+      "last7": "Last 7 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month"
+    },
+    "error": {
+      "required": "This field is required.",
+      "filterNameTaken": "You already have a filter with that name.",
+      "saveFailed": "That could not be saved. Try again.",
+      "forbidden": "Not permitted.",
+      "number": "Enter a number.",
+      "negative": "Cannot be negative.",
+      "duplicate": "That value is already used.",
+      "stillReferenced": "Other records still point at this one."
+    },
+    "fields": "Fields",
+    "searchFields": "Search fields",
+    "noFields": "No matching fields",
+    "removeFilter": "Remove filter",
+    "operator": {
+      "contains": "contains",
+      "notContains": "does not contain",
+      "is": "is",
+      "in": "in",
+      "notIn": "not in",
+      "between": "between",
+      "gt": "greater than",
+      "lt": "less than",
+      "isEmpty": "is empty",
+      "isNotEmpty": "is not empty"
+    },
+    "choose": "Choose",
+    "nSelected": "{count} selected",
+    "saveAsView": "Save this view",
+    "viewName": "View name",
+    "viewOptions": "View options",
+    "moreOperators": "More options",
+    "changeOperator": "change",
+    "shortNot": "not",
+    "noValueNeeded": "No value needed for this option."
   }
 }

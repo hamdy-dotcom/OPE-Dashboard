@@ -1,11 +1,16 @@
 import { getTranslations } from "next-intl/server";
 import { canWriteOps, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
-import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
-import { loadWorkOrders, type WorkOrderStatus } from "./queries";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { loadWorkOrderOptions, loadWorkOrders } from "./queries";
+import { buildWorkOrderFilters } from "./filters";
 import { WorkOrdersTable } from "./work-orders-table";
 import { WorkOrderDrawer } from "./work-order-drawer";
+
+const MODULE = "work-orders";
 
 /**
  * Work orders. There is no New button — an order is always raised from its RFR,
@@ -16,61 +21,71 @@ export default async function WorkOrdersPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string;
-    status?: string;
-    id?: string;
-    rfr?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const {
-    q = "",
-    status = "",
-    id,
-    rfr,
-    mode,
-    sort = "",
-    dir = "asc",
-  } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
+  const rfr = one("rfr") || undefined;
 
   const t = await getTranslations("workOrder");
   const user = await requireUser(locale);
   const canEdit = canWriteOps(user.role);
 
-  const all = await loadWorkOrders(q);
-  const rows = status ? all.filter((r) => r.status === status) : all;
+  const [all, options, { state: filterState, saved }] = await Promise.all([
+    loadWorkOrders(""),
+    loadWorkOrderOptions(),
+    resolveFilters(MODULE, sp),
+  ]);
 
-  const count = (s: WorkOrderStatus) => all.filter((r) => r.status === s).length;
-
-  const chips: Chip[] = [
-    { value: "", label: t("allWorkOrders"), count: all.length },
-    { value: "notStarted", label: t("status.notStarted"), count: count("notStarted") },
+  const filters = buildWorkOrderFilters(
     {
-      value: "inProgress",
-      label: t("status.inProgress"),
-      count: count("inProgress"),
-      tone: "warn",
+      number: t("field.number"),
+      rfr: t("field.rfr"),
+      vehicle: t("field.vehicle"),
+      issueType: t("field.issueType"),
+      maintenanceType: t("field.maintenanceType"),
+      category: t("field.category"),
+      engineer: t("field.engineer"),
+      centre: t("field.centre"),
+      repairStart: t("field.repairStart"),
+      repairEnd: t("field.repairEnd"),
+      status: t("field.status"),
+      statusNotStarted: t("status.notStarted"),
+      statusInProgress: t("status.inProgress"),
+      statusCompleted: t("status.completed"),
+      statusSkipped: t("status.skipped"),
     },
     {
-      value: "completed",
-      label: t("status.completed"),
-      count: count("completed"),
-      tone: "go",
+      issueTypes: options.issueTypes,
+      maintenanceTypes: options.maintenanceTypes,
+      categories: options.maintenanceCategories,
+      engineers: options.engineers.map((e) => ({ value: e.id, label: e.fullName })),
+      centres: options.centres.map((c) => ({
+        value: c.id,
+        label: `${c.centreCode} · ${c.centreName}`,
+      })),
     },
-    { value: "skipped", label: t("status.skipped"), count: count("skipped"), tone: "stop" },
-  ];
+  );
 
-  const query: Record<string, string> = {};
-  if (q) query.q = q;
-  if (status) query.status = status;
+  const rows = applyFilters(all, filters, filterState);
+
+
+
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   const drawerMode =
     canEdit && mode === "new"
@@ -86,19 +101,21 @@ export default async function WorkOrdersPage({
       <Panel clip={false}>
         <PanelHead title={t("title")} />
 
-        <ListSearch
+        <FilterBar
           pathname="/work-orders"
-          value={q}
-          placeholder={t("search")}
-          extraQuery={status ? { status } : {}}
-        />
-
-        <FilterChips
-          chips={chips}
-          active={status}
-          param="status"
-          pathname="/work-orders"
-          extraQuery={q ? { q } : {}}
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("search")}
+          savedViews={
+            <SavedViewsTabs
+              module={MODULE}
+              pathname="/work-orders"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <WorkOrdersTable

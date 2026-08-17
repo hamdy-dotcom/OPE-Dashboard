@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -40,7 +41,7 @@ export function OperationForm({
   options: PickerOptions;
   initial: OperationFormValues;
   /** Query to return to when the form is cancelled. Already free of blanks. */
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("operations");
   const tShift = useTranslations("shift");

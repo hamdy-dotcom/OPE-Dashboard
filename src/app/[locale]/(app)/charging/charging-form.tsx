@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -39,7 +40,7 @@ export function ChargingForm({
   sessionId?: string;
   options: ChargingOptions;
   initial: ChargingFormValues;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("charging");
   const tCommon = useTranslations("common");

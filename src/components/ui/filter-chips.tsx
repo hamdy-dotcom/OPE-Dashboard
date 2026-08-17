@@ -1,4 +1,5 @@
 "use client";
+import type { QueryParams } from "@/lib/filters";
 
 import { useTransition } from "react";
 import { useRouter } from "@/lib/i18n/routing";
@@ -35,7 +36,7 @@ export function FilterChips({
   param: string;
   pathname: string;
   /** Filters that should outlive a chip change, e.g. the operating date. */
-  extraQuery?: Record<string, string>;
+  extraQuery?: QueryParams;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();

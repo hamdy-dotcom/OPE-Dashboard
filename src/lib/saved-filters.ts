@@ -1,0 +1,69 @@
+import { savedFiltersTable } from "@/lib/saved-filters-db";
+import { EMPTY_FILTER_STATE, OPERATORS, type FilterRow, type FilterState } from "@/lib/filters";
+
+/**
+ * Saved views: per user, per module. A view stores the chosen fields, their
+ * operators and their values, so reopening one restores the whole composition
+ * rather than a set of loose values.
+ *
+ * RLS scopes every row to its owner, so these queries never filter by user.
+ */
+
+export type SavedView = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  state: FilterState;
+};
+
+const OPERATOR_SET = new Set<string>(Object.values(OPERATORS).flat());
+
+/** `filter_state` is written by us but read back as untrusted json. */
+function toState(raw: unknown): FilterState {
+  if (!raw || typeof raw !== "object") return EMPTY_FILTER_STATE;
+
+  const record = raw as { q?: unknown; rows?: unknown };
+  const rows: FilterRow[] = [];
+
+  if (Array.isArray(record.rows)) {
+    for (const entry of record.rows) {
+      if (!entry || typeof entry !== "object") continue;
+      const row = entry as { field?: unknown; operator?: unknown; value?: unknown };
+      if (typeof row.field !== "string" || typeof row.operator !== "string") continue;
+      if (!OPERATOR_SET.has(row.operator)) continue;
+
+      rows.push({
+        field: row.field,
+        operator: row.operator as FilterRow["operator"],
+        value: typeof row.value === "string" ? row.value : "",
+      });
+    }
+  }
+
+  return { q: typeof record.q === "string" ? record.q : "", rows };
+}
+
+type SavedViewRecord = {
+  id: string;
+  name: string;
+  is_default: boolean;
+  filter_state: unknown;
+};
+
+export async function loadSavedViews(module: string): Promise<SavedView[]> {
+  const table = await savedFiltersTable();
+  const { data } = await table
+    .select("id, name, is_default, filter_state")
+    .eq("module", module)
+    .order("created_at");
+
+  return ((data ?? []) as SavedViewRecord[]).map((v) => ({
+    id: v.id,
+    name: v.name,
+    isDefault: v.is_default,
+    state: toState(v.filter_state),
+  }));
+}
+
+export const defaultSavedView = (views: SavedView[]) =>
+  views.find((v) => v.isDefault) ?? null;

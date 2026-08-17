@@ -4,11 +4,17 @@ import { canWriteMaster, requireUser } from "@/lib/auth";
 import { Drawer } from "@/components/ui/drawer";
 import { Panel, PanelHead, Section } from "@/components/ui/panel";
 import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
 import { VehicleDrawer } from "../vehicles/vehicle-drawer";
 import { loadPmBoard, loadVehiclesWithoutSchedule } from "./queries";
+import { buildPmFilters } from "./filters";
 import { PmTable } from "./pm-table";
 import { BuildSchedules } from "./build-schedules";
+
+const MODULE = "periodic-maintenance";
 
 const buildButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
@@ -23,17 +29,19 @@ export default async function PeriodicMaintenancePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string;
-    status?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const { q = "", status = "", id, mode, sort = "", dir = "asc" } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
+  const status = one("status");
 
   const t = await getTranslations("pm");
   const tStatus = await getTranslations("status");
@@ -41,20 +49,48 @@ export default async function PeriodicMaintenancePage({
   const user = await requireUser(locale);
   const canEdit = canWriteMaster(user.role);
 
-  const all = await loadPmBoard(q);
-  const rows = status ? all.filter((r) => r.status === status) : all;
+  const [all, { state: filterState, saved }] = await Promise.all([
+    loadPmBoard(""),
+    resolveFilters(MODULE, sp),
+  ]);
 
-  const count = (code: string) => all.filter((r) => r.status === code).length;
+  const filters = buildPmFilters(
+    {
+      vehicle: t("field.vehicle"),
+      part: t("field.part"),
+      interval: t("field.interval"),
+      lastService: t("field.lastService"),
+      scheduled: t("field.scheduled"),
+      actual: t("field.actual"),
+      remaining: t("field.remaining"),
+      status: t("field.status"),
+      statusOverdue: tStatus("overdue"),
+      statusDueNow: tStatus("dueNow"),
+      statusDueSoon: tStatus("dueSoon"),
+      statusOk: tStatus("ok"),
+      statusNeverServiced: tStatus("neverServiced"),
+      statusNoKmData: tStatus("noKmData"),
+    },
+    {
+      vehicles: [
+        ...new Map(all.map((r) => [r.vehicleId, `${r.vehicleCode} · ${r.plateNumber}`])),
+      ].map(([value, label]) => ({ value, label })),
+      rows: all,
+    },
+  );
+
+  const searched = applyFilters(all, filters, filterState);
+  const rows = status ? searched.filter((r) => r.status === status) : searched;
+
+  const count = (code: string) => searched.filter((r) => r.status === code).length;
 
   const chips: Chip[] = [
-    { value: "", label: t("allParts"), count: all.length },
+    { value: "", label: t("allParts"), count: searched.length },
     { value: "overdue", label: tStatus("overdue"), count: count("overdue"), tone: "stop" },
     { value: "due_now", label: tStatus("dueNow"), count: count("due_now"), tone: "warn" },
     { value: "due_soon", label: tStatus("dueSoon"), count: count("due_soon"), tone: "warn" },
     { value: "ok", label: tStatus("ok"), count: count("ok"), tone: "go" },
   ];
-
-  // Only shown when they exist, so no row is unreachable by any chip.
   if (count("never_serviced") > 0) {
     chips.push({
       value: "never_serviced",
@@ -70,16 +106,16 @@ export default async function PeriodicMaintenancePage({
     });
   }
 
-  const query: Record<string, string> = {};
-  if (q) query.q = q;
-  if (status) query.status = status;
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
+  if (status) baseQuery.status = status;
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
-  const drawerMode =
-    canEdit && mode === "edit" && id ? "edit" : id ? "view" : null;
+  const drawerMode = canEdit && mode === "edit" && id ? "edit" : id ? "view" : null;
 
   // Always offered to supervisor and above, not only when the board is empty:
   // buses join the fleet after the first seeding too.
@@ -103,11 +139,21 @@ export default async function PeriodicMaintenancePage({
           }
         />
 
-        <ListSearch
+        <FilterBar
           pathname="/periodic-maintenance"
-          value={q}
-          placeholder={t("search")}
-          extraQuery={status ? { status } : {}}
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("search")}
+          savedViews={
+            <SavedViewsTabs
+              module={MODULE}
+              pathname="/periodic-maintenance"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <FilterChips
@@ -115,7 +161,7 @@ export default async function PeriodicMaintenancePage({
           active={status}
           param="status"
           pathname="/periodic-maintenance"
-          extraQuery={q ? { q } : {}}
+          extraQuery={filterQuery}
         />
 
         <PmTable

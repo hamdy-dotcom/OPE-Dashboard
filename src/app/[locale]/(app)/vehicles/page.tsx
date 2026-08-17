@@ -2,11 +2,17 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/lib/i18n/routing";
 import { canWriteMaster, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
-import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { loadLookupSets } from "@/lib/lookups";
 import { loadVehicles } from "./queries";
+import { buildVehicleFilters } from "./filters";
 import { VehiclesTable } from "./vehicles-table";
 import { VehicleDrawer } from "./vehicle-drawer";
+
+const MODULE = "vehicles";
 
 const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
@@ -16,44 +22,72 @@ export default async function VehiclesPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string;
-    status?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const { q = "", status = "", id, mode, sort = "", dir = "asc" } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
 
   const t = await getTranslations("master");
+  const tVehicle = await getTranslations("vehicle");
   const user = await requireUser(locale);
   const canEdit = canWriteMaster(user.role);
 
-  // Loaded unfiltered by status so the chips carry real counts.
-  const all = await loadVehicles(q);
-  const rows = status ? all.filter((r) => r.statusCode === status) : all;
+  const [all, sets, { state: filterState, saved }] = await Promise.all([
+    loadVehicles(""),
+    loadLookupSets(["vehicle_type", "fuel_type", "generic_status"] as const),
+    resolveFilters(MODULE, sp),
+  ]);
 
-  const statusCodes = [...new Set(all.map((r) => r.statusCode).filter(Boolean))];
-  const chips: Chip[] = [
-    { value: "", label: t("allRecords"), count: all.length },
-    ...statusCodes.map((code) => ({
-      value: code as string,
-      label: all.find((r) => r.statusCode === code)?.statusLabel ?? (code as string),
-      count: all.filter((r) => r.statusCode === code).length,
-      tone: code === "active" ? ("go" as const) : ("neutral" as const),
-    })),
-  ];
+  const filters = buildVehicleFilters(
+    {
+      vehicleCode: t("field.vehicleCode"),
+      plateNumber: t("field.plateNumber"),
+      vendor: tVehicle("vendor"),
+      type: tVehicle("type"),
+      fuelType: t("field.fuelType"),
+      defaultDriver: t("field.defaultDriver"),
+      odometer: tVehicle("odometer"),
+      batteryCapacity: t("field.batteryCapacity"),
+      licenseExpiry: tVehicle("licenseExpiry"),
+      status: t("field.status"),
+    },
+    {
+      vendors: [
+        ...new Map(
+          all.filter((v) => v.vendorName).map((v) => [v.vendorId, v.vendorName!]),
+        ),
+      ].map(([value, label]) => ({ value, label })),
+      drivers: [
+        ...new Map(
+          all
+            .filter((v) => v.defaultDriverId && v.defaultDriverName)
+            .map((v) => [v.defaultDriverId!, v.defaultDriverName!]),
+        ),
+      ].map(([value, label]) => ({ value, label })),
+      vehicleTypes: sets.vehicle_type,
+      fuelTypes: sets.fuel_type,
+      statuses: sets.generic_status,
+    },
+  );
 
-  const query: Record<string, string> = {};
-  if (q) query.q = q;
-  if (status) query.status = status;
+  const rows = applyFilters(all, filters, filterState);
+
+
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   const drawerMode =
     canEdit && mode === "new"
@@ -81,19 +115,21 @@ export default async function VehiclesPage({
           }
         />
 
-        <ListSearch
+        <FilterBar
           pathname="/vehicles"
-          value={q}
-          placeholder={t("searchVehicles")}
-          extraQuery={status ? { status } : {}}
-        />
-
-        <FilterChips
-          chips={chips}
-          active={status}
-          param="status"
-          pathname="/vehicles"
-          extraQuery={q ? { q } : {}}
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("searchVehicles")}
+          savedViews={
+            <SavedViewsTabs
+              module={MODULE}
+              pathname="/vehicles"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <VehiclesTable

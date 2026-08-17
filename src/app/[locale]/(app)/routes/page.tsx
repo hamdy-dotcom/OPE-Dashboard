@@ -3,8 +3,13 @@ import { Link } from "@/lib/i18n/routing";
 import { canWriteMaster, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
 import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { loadLookups } from "@/lib/lookups";
 import { loadRoutes, loadStations, type RouteEntity } from "./queries";
+import { buildRouteFilters, buildStationFilters } from "./filters";
 import { RoutesTable, StationsTable } from "./routes-table";
 import { RouteDrawer } from "./route-drawer";
 
@@ -12,55 +17,75 @@ const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
 
 /**
- * Routes and stations on one page. The chips switch which of the two the table
- * lists; the drawer follows whichever record is open.
+ * Routes and stations on one page. Each entity carries its own filter set and
+ * its own saved filters — a route filter is meaningless on a station list.
  */
 export default async function RoutesPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    entity?: string;
-    q?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const {
-    entity: entityParam,
-    q = "",
-    id,
-    mode,
-    sort = "",
-    dir = "asc",
-  } = await searchParams;
-
-  const entity: RouteEntity = entityParam === "stations" ? "stations" : "routes";
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
+  const entity: RouteEntity = one("entity") === "stations" ? "stations" : "routes";
   const isStations = entity === "stations";
+  const moduleKey = isStations ? "routes:stations" : "routes";
 
   const t = await getTranslations("master");
   const user = await requireUser(locale);
   const canEdit = canWriteMaster(user.role);
 
-  // Both sides are counted so the chips are accurate whichever is showing.
-  const [routes, stations] = await Promise.all([loadRoutes(q), loadStations(q)]);
+  const [routes, stations, statuses, { state: filterState, saved }] = await Promise.all([
+    loadRoutes(""),
+    loadStations(""),
+    loadLookups("generic_status"),
+    resolveFilters(moduleKey, sp),
+  ]);
+
+  const labels = {
+    routeCode: t("field.routeCode"),
+    routeName: t("field.routeName"),
+    routeDistance: t("field.routeDistance"),
+    stopsInSequence: t("stopsInSequence"),
+    numberOfStations: t("field.numberOfStations"),
+    legTime: t("field.legTime"),
+    roundTripTime: t("field.roundTripTime"),
+    stationCode: t("field.stationCode"),
+    stationName: t("field.stationName"),
+    status: t("field.status"),
+  };
+
+  const routeFilters = buildRouteFilters(labels, { statuses, rows: routes });
+  const stationFilters = buildStationFilters(labels, { statuses, rows: stations });
+
+  const visibleRoutes = isStations ? routes : applyFilters(routes, routeFilters, filterState);
+  const visibleStations = isStations
+    ? applyFilters(stations, stationFilters, filterState)
+    : stations;
 
   const chips: Chip[] = [
-    { value: "", label: t("routesTab"), count: routes.length },
-    { value: "stations", label: t("stationsTab"), count: stations.length },
+    { value: "", label: t("routesTab"), count: visibleRoutes.length },
+    { value: "stations", label: t("stationsTab"), count: visibleStations.length },
   ];
 
-  const query: Record<string, string> = {};
-  if (isStations) query.entity = "stations";
-  if (q) query.q = q;
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
+  if (isStations) baseQuery.entity = "stations";
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   const drawerMode =
     canEdit && mode === "new"
@@ -90,11 +115,23 @@ export default async function RoutesPage({
           }
         />
 
-        <ListSearch
+        <FilterBar
           pathname="/routes"
-          value={q}
-          placeholder={isStations ? t("searchStations") : t("searchRoutes")}
-          extraQuery={isStations ? { entity: "stations" } : {}}
+          controls={
+            isStations ? toControls(stationFilters) : toControls(routeFilters)
+          }
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={isStations ? t("searchStations") : t("searchRoutes")}
+          savedViews={
+            <SavedViewsTabs
+              module={moduleKey}
+              pathname="/routes"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <FilterChips
@@ -102,12 +139,12 @@ export default async function RoutesPage({
           active={isStations ? "stations" : ""}
           param="entity"
           pathname="/routes"
-          extraQuery={q ? { q } : {}}
+          extraQuery={filterQuery}
         />
 
         {isStations ? (
           <StationsTable
-            rows={stations}
+            rows={visibleStations}
             selectedId={id ?? null}
             query={query}
             sort={sort}
@@ -115,7 +152,7 @@ export default async function RoutesPage({
           />
         ) : (
           <RoutesTable
-            rows={routes}
+            rows={visibleRoutes}
             selectedId={id ?? null}
             query={query}
             sort={sort}

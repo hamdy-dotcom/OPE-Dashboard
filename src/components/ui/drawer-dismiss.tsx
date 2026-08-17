@@ -1,4 +1,5 @@
 "use client";
+import type { QueryParams } from "@/lib/filters";
 
 import { useEffect } from "react";
 import { useRouter } from "@/lib/i18n/routing";
@@ -10,7 +11,7 @@ import { useRouter } from "@/lib/i18n/routing";
 export function DrawerDismiss({
   href,
 }: {
-  href: { pathname: string; query: Record<string, string> };
+  href: { pathname: string; query: QueryParams };
 }) {
   const router = useRouter();
 

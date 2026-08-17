@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useTranslations } from "next-intl";
 import { DataTable, orDash, type Column } from "@/components/ui/data-table";
 import { Empty } from "@/components/ui/empty";
@@ -19,7 +20,7 @@ export function OperationsTable({
   rows: OperationRow[];
   shifts: ShiftOption[];
   selectedId: string | null;
-  query: Record<string, string>;
+  query: QueryParams;
   sort: string;
   dir: string;
 }) {

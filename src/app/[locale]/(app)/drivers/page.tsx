@@ -3,11 +3,18 @@ import { Link } from "@/lib/i18n/routing";
 import { canWriteMaster, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
 import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { loadLookupSets } from "@/lib/lookups";
 import { expiryState } from "@/lib/format";
 import { loadDrivers, type DriverRow } from "./queries";
+import { buildDriverFilters } from "./filters";
 import { DriversTable } from "./drivers-table";
 import { DriverDrawer } from "./driver-drawer";
+
+const MODULE = "drivers";
 
 const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
@@ -29,62 +36,78 @@ export default async function DriversPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string;
-    filter?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const { q = "", filter = "", id, mode, sort = "", dir = "asc" } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
+  const filter = one("filter");
 
   const t = await getTranslations("master");
   const user = await requireUser(locale);
   const canEdit = canWriteMaster(user.role);
 
-  const all = await loadDrivers(q);
+  const [all, sets, { state: filterState, saved }] = await Promise.all([
+    loadDrivers(""),
+    loadLookupSets(["license_grade", "generic_status"] as const),
+    resolveFilters(MODULE, sp),
+  ]);
 
-  const rows =
-    filter === "due"
-      ? all.filter(documentsDue)
-      : filter === "company"
-        ? all.filter((r) => r.vendorId === null)
-        : filter
-          ? all.filter((r) => r.statusCode === filter)
-          : all;
-
-  const statusCodes = [...new Set(all.map((r) => r.statusCode).filter(Boolean))];
-  const chips: Chip[] = [
-    { value: "", label: t("allRecords"), count: all.length },
-    ...statusCodes.map((code) => ({
-      value: code as string,
-      label: all.find((r) => r.statusCode === code)?.statusLabel ?? (code as string),
-      count: all.filter((r) => r.statusCode === code).length,
-      tone: code === "active" ? ("go" as const) : ("neutral" as const),
-    })),
+  const filters = buildDriverFilters(
     {
-      value: "company",
-      label: t("companyDriver"),
-      count: all.filter((r) => r.vendorId === null).length,
+      driverCode: t("field.driverCode"),
+      driverName: t("field.driverName"),
+      vendor: t("field.vendor"),
+      mobile: t("field.mobile"),
+      licenseGrade: t("field.licenseGrade"),
+      hiringDate: t("field.hiringDate"),
+      licenseExpiry: t("field.licenseExpiry"),
+      tourismExpiry: t("field.tourismExpiry"),
+      hasTourismId: t("field.hasTourismId"),
+      status: t("field.status"),
     },
+    {
+      vendors: [
+        ...new Map(
+          all.filter((d) => d.vendorId && d.vendorName).map((d) => [d.vendorId!, d.vendorName!]),
+        ),
+      ].map(([value, label]) => ({ value, label })),
+      licenseGrades: sets.license_grade,
+      statuses: sets.generic_status,
+    },
+  );
+
+  const searched = applyFilters(all, filters, filterState);
+
+  const rows = filter === "due" ? searched.filter(documentsDue) : searched;
+
+  // The only chip left: licence-or-tourism expiry spans two columns with an
+  // OR, which the bar cannot express as a single row.
+  const chips: Chip[] = [
+    { value: "", label: t("allRecords"), count: searched.length },
     {
       value: "due",
       label: t("documentsDue"),
-      count: all.filter(documentsDue).length,
+      count: searched.filter(documentsDue).length,
       tone: "warn" as const,
     },
   ];
 
-  const query: Record<string, string> = {};
-  if (q) query.q = q;
-  if (filter) query.filter = filter;
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
+  if (filter) baseQuery.filter = filter;
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   const drawerMode =
     canEdit && mode === "new"
@@ -112,11 +135,21 @@ export default async function DriversPage({
           }
         />
 
-        <ListSearch
+        <FilterBar
           pathname="/drivers"
-          value={q}
-          placeholder={t("searchDrivers")}
-          extraQuery={filter ? { filter } : {}}
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("searchDrivers")}
+          savedViews={
+            <SavedViewsTabs
+              module={MODULE}
+              pathname="/drivers"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <FilterChips
@@ -124,7 +157,7 @@ export default async function DriversPage({
           active={filter}
           param="filter"
           pathname="/drivers"
-          extraQuery={q ? { q } : {}}
+          extraQuery={filterQuery}
         />
 
         <DriversTable

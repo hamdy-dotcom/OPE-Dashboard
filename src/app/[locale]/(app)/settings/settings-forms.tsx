@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -30,7 +31,7 @@ export function UserForm({
   backTo,
 }: {
   user: UserRow;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
@@ -224,7 +225,7 @@ export function LookupForm({
   lookup?: LookupRow;
   categories: LookupCategoryRow[];
   defaultCategory: string;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");

@@ -2,12 +2,16 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/lib/i18n/routing";
 import { canWriteOps, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
-import { FilterChips, type Chip } from "@/components/ui/filter-chips";
-import { ListSearch } from "@/components/ui/list-search";
-import { loadChargingSessions } from "./queries";
-import { PLUG_OPTIONS } from "./plugs";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { loadChargingOptions, loadChargingSessions } from "./queries";
+import { buildChargingFilters } from "./filters";
 import { ChargingTable } from "./charging-table";
 import { ChargingDrawer } from "./charging-drawer";
+
+const MODULE = "charging";
 
 const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
@@ -17,49 +21,62 @@ export default async function ChargingPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{
-    q?: string;
-    plugs?: string;
-    id?: string;
-    mode?: string;
-    sort?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
-  const { q = "", plugs = "", id, mode, sort = "", dir = "asc" } = await searchParams;
+  const sp = await searchParams;
+  const one = (key: string) => {
+    const value = sp[key];
+    return (Array.isArray(value) ? value[0] : value) ?? "";
+  };
+  const id = one("id") || undefined;
+  const mode = one("mode");
+  const sort = one("sort");
+  const dir = one("dir") || "asc";
 
   const t = await getTranslations("charging");
   const user = await requireUser(locale);
   const canEdit = canWriteOps(user.role);
 
-  const all = await loadChargingSessions(q);
-  const rows = plugs ? all.filter((r) => r.plugsUsed === plugs) : all;
+  const [all, options, { state: filterState, saved }] = await Promise.all([
+    loadChargingSessions(""),
+    loadChargingOptions(),
+    resolveFilters(MODULE, sp),
+  ]);
 
-  const chips: Chip[] = [
-    { value: "", label: t("allSessions"), count: all.length },
-    ...PLUG_OPTIONS.map((plug) => ({
-      value: plug,
-      label: t("plugLabel", { plug }),
-      count: all.filter((r) => r.plugsUsed === plug).length,
-    })),
+  const filters = buildChargingFilters(
     {
-      value: "open",
-      label: t("openSessions"),
-      count: all.filter((r) => r.endTime === null).length,
-      tone: "warn" as const,
+      sessionCode: t("field.sessionCode"),
+      vehicle: t("field.vehicle"),
+      charger: t("field.charger"),
+      plugs: t("field.plugs"),
+      batteryStart: t("field.batteryStart"),
+      batteryEnd: t("field.batteryEnd"),
+      startTime: t("field.startTime"),
+      endTime: t("field.endTime"),
+      energy: t("field.energy"),
+      finished: t("finished"),
     },
-  ];
+    {
+      vehicles: options.vehicles.map((v) => ({
+        value: v.id,
+        label: `${v.vehicleCode} · ${v.plateNumber}`,
+      })),
+      chargers: options.chargers.map((c) => ({ value: c.id, label: c.chargerCode })),
+      rows: all,
+    },
+  );
 
-  const visible = plugs === "open" ? all.filter((r) => r.endTime === null) : rows;
+  const rows = applyFilters(all, filters, filterState);
 
-  const query: Record<string, string> = {};
-  if (q) query.q = q;
-  if (plugs) query.plugs = plugs;
+
+  const filterQuery = writeFilterState(filterState);
+  const baseQuery: Record<string, string> = {};
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...filterQuery };
 
   const drawerMode =
     canEdit && mode === "new"
@@ -87,23 +104,25 @@ export default async function ChargingPage({
           }
         />
 
-        <ListSearch
+        <FilterBar
           pathname="/charging"
-          value={q}
-          placeholder={t("search")}
-          extraQuery={plugs ? { plugs } : {}}
-        />
-
-        <FilterChips
-          chips={chips}
-          active={plugs}
-          param="plugs"
-          pathname="/charging"
-          extraQuery={q ? { q } : {}}
+          controls={toControls(filters)}
+          state={filterState}
+          baseQuery={baseQuery}
+          searchPlaceholder={t("search")}
+          savedViews={
+            <SavedViewsTabs
+              module={MODULE}
+              pathname="/charging"
+              views={saved}
+              state={filterState}
+              baseQuery={baseQuery}
+            />
+          }
         />
 
         <ChargingTable
-          rows={visible}
+          rows={rows}
           selectedId={id ?? null}
           query={query}
           sort={sort}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -43,7 +44,7 @@ export function WorkOrderForm({
   rfr: RfrContext;
   options: WorkOrderOptions;
   initial: WorkOrderFormValues;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("workOrder");
   const tCommon = useTranslations("common");

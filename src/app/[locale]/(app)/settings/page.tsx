@@ -5,6 +5,11 @@ import { isSuper, requireUser } from "@/lib/auth";
 import { Panel, PanelHead } from "@/components/ui/panel";
 import { FilterChips, type Chip } from "@/components/ui/filter-chips";
 import { ListSearch } from "@/components/ui/list-search";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
+import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
+import { resolveFilters } from "@/lib/filter-page";
+import { buildLookupFilters } from "./filters";
 import {
   loadAllLookups,
   loadLookupCategories,
@@ -15,7 +20,6 @@ import {
 import { LookupsTable, UsersTable } from "./settings-tables";
 import { ThresholdsForm } from "./settings-forms";
 import { SettingsDrawer } from "./settings-drawer";
-import { CategoryFilter } from "./category-filter";
 
 const newButton =
   "rounded-[10px] border border-ink bg-ink px-3 py-1.5 text-[12.5px] font-medium text-on-ink transition-opacity hover:opacity-90";
@@ -49,6 +53,7 @@ export default async function SettingsPage({
     sort = "",
     dir = "asc",
   } = await searchParams;
+  const searchParamsRaw = await searchParams;
 
   const user = await requireUser(locale);
   if (!isSuper(user.role)) notFound();
@@ -58,12 +63,30 @@ export default async function SettingsPage({
   const entity: SettingsEntity =
     entityParam === "lookups" ? "lookups" : entityParam === "thresholds" ? "thresholds" : "users";
 
-  const [users, lookups, thresholds, categories] = await Promise.all([
-    loadUsers(entity === "users" ? q : ""),
-    entity === "lookups" ? loadAllLookups(category) : [],
-    loadThresholds(),
-    loadLookupCategories(),
-  ]);
+  const [users, allLookups, thresholds, categories, { state: filterState, saved }] =
+    await Promise.all([
+      loadUsers(entity === "users" ? q : ""),
+      entity === "lookups" ? loadAllLookups("") : [],
+      loadThresholds(),
+      loadLookupCategories(),
+      resolveFilters("settings:lookups", searchParamsRaw),
+    ]);
+
+  const lookupFilters = buildLookupFilters(
+    {
+      category: t("field.category"),
+      code: t("field.code"),
+      labelEn: t("field.labelEn"),
+      labelAr: t("field.labelAr"),
+      sortOrder: t("field.sortOrder"),
+      isActive: t("field.isActive"),
+    },
+    { categories, rows: allLookups },
+  );
+
+  // The old category select is now the `category` filter control.
+  const lookups = applyFilters(allLookups, lookupFilters, filterState);
+  const filterQuery = writeFilterState(filterState);
 
   const chips: Chip[] = [
     { value: "", label: t("usersTab"), count: users.length },
@@ -75,14 +98,14 @@ export default async function SettingsPage({
     },
   ];
 
-  const query: Record<string, string> = {};
-  if (entity !== "users") query.entity = entity;
-  if (q) query.q = q;
-  if (category) query.category = category;
+  const baseQuery: Record<string, string> = {};
+  if (entity !== "users") baseQuery.entity = entity;
+  if (entity === "users" && q) baseQuery.q = q;
   if (sort) {
-    query.sort = sort;
-    query.dir = dir;
+    baseQuery.sort = sort;
+    baseQuery.dir = dir;
   }
+  const query = { ...baseQuery, ...(entity === "lookups" ? filterQuery : {}) };
 
   const drawerMode =
     mode === "new" ? "new" : mode === "edit" && id ? "edit" : id ? "view" : null;
@@ -135,7 +158,22 @@ export default async function SettingsPage({
 
         {entity === "lookups" && (
           <>
-            <CategoryFilter categories={categories} category={category} />
+            <FilterBar
+              pathname="/settings"
+              controls={toControls(lookupFilters)}
+              state={filterState}
+              baseQuery={baseQuery}
+              searchPlaceholder={t("searchLookups")}
+              savedViews={
+                <SavedViewsTabs
+                  module="settings:lookups"
+                  pathname="/settings"
+                  views={saved}
+                  state={filterState}
+                  baseQuery={baseQuery}
+                />
+              }
+            />
             <LookupsTable
               rows={lookups}
               selectedId={id ?? null}

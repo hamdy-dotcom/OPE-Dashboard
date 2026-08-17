@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
 import { DataTable, orDash, type Column } from "@/components/ui/data-table";
@@ -34,7 +35,7 @@ export function WorkOrdersTable({
 }: {
   rows: WorkOrderRow[];
   selectedId: string | null;
-  query: Record<string, string>;
+  query: QueryParams;
   sort: string;
   dir: string;
 }) {

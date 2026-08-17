@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "@/lib/i18n/routing";
 import { DrawerDismiss } from "./drawer-dismiss";
+import type { QueryParams } from "@/lib/filters";
 
-export type CloseHref = { pathname: string; query: Record<string, string> };
+export type CloseHref = { pathname: string; query: QueryParams };
 
 /**
  * The one drawer. Viewing, creating and editing a record all use it, driven by

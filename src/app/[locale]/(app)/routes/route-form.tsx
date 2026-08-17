@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -36,7 +37,7 @@ export function RouteForm({
   routeId?: string;
   options: RouteOptions;
   initial: RouteFormValues;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
   linkedStations?: number;
 }) {
   const t = useTranslations("master");
@@ -199,7 +200,7 @@ export function StationForm({
   stationId?: string;
   options: RouteOptions;
   initial: StationFormValues;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("master");
   const tCommon = useTranslations("common");

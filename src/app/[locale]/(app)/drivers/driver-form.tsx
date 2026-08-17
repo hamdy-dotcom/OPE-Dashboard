@@ -1,5 +1,6 @@
 "use client";
 
+import type { QueryParams } from "@/lib/filters";
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/lib/i18n/routing";
@@ -26,7 +27,7 @@ export function DriverForm({
   driverId?: string;
   options: DriverOptions;
   initial: DriverFormValues;
-  backTo: Record<string, string>;
+  backTo: QueryParams;
 }) {
   const t = useTranslations("master");
   const tCommon = useTranslations("common");

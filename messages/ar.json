@@ -64,7 +64,6 @@
     "edit": "تعديل سجل التشغيل",
     "record": "السجل",
     "missingEndKm": "عداد النهاية ناقص",
-    "allShifts": "كل الورديات",
     "clearFilters": "مسح",
     "choose": "اختر",
     "optional": "اختياري",
@@ -111,7 +110,10 @@
       "driver": "السائق الافتراضي لهذه الحافلة"
     },
     "kmDelta": "+{km} كم",
-    "batteryRange": "{from} ← {to}%"
+    "batteryRange": "{from} ← {to}%",
+    "vendorLabel": "المورد",
+    "statusOperating": "تعمل",
+    "searchPlaceholder": "ابحث بالكود أو المركبة أو اللوحة أو السائق أو المورد"
   },
   "master": {
     "record": "السجل",
@@ -161,7 +163,6 @@
     "kpiApplies": "يُطبَّق مؤشر الأداء",
     "kpiDoesNotApply": "بدون مؤشر أداء",
     "applyKpiHint": "يضرب الإجمالي الشهري في نسبة التحقيق من بطاقة الأداء.",
-    "withoutTerms": "بدون شروط",
     "routesTitle": "المسارات",
     "stationsTitle": "المحطات",
     "routesTab": "المسارات",
@@ -322,7 +323,8 @@
     },
     "field": {
       "number": "الطلب"
-    }
+    },
+    "searchPlaceholder": "ابحث بالطلب أو المركبة أو اللوحة أو السائق أو الموقع"
   },
   "finance": {
     "scorecard": "بطاقة الأداء",
@@ -389,7 +391,6 @@
     "repair": "الإصلاح",
     "replacedParts": "القطع المستبدلة",
     "repeatIndex": "مؤشر التكرار",
-    "allWorkOrders": "الكل",
     "search": "ابحث بأمر العمل أو الطلب أو المركبة",
     "emptyHint": "تُفتح أوامر العمل من طلب الإصلاح.",
     "noSelection": "لم يتم اختيار أمر عمل",
@@ -455,9 +456,6 @@
     "new": "جلسة جديدة",
     "edit": "تعديل الجلسة",
     "session": "الجلسة",
-    "allSessions": "الكل",
-    "openSessions": "قيد الشحن",
-    "plugLabel": "القابس {plug}",
     "search": "ابحث بالجلسة أو المركبة أو الشاحن",
     "chooseCharger": "اختر شاحنًا",
     "plugsHint": "A أو B أو كليهما",
@@ -500,7 +498,8 @@
       "stillReferenced": "ما زالت هناك سجلات أخرى مرتبطة بهذا السجل.",
       "forbidden": "صلاحيتك لا تسمح بتعديل جلسات الشحن.",
       "saveFailed": "تعذّر حفظ الجلسة. حاول مرة أخرى."
-    }
+    },
+    "finished": "مكتملة"
   },
   "scorecard": {
     "title": "بطاقات الأداء الشهرية",
@@ -576,7 +575,8 @@
     "newTemplate": "قالب جديد",
     "newTemplateHint": "مجموعة مؤشرات المورد. فتح شهر ينسخها.",
     "createTemplate": "إنشاء القالب",
-    "allVendorsHaveTemplates": "كل الموردين لديهم قوالب مؤشرات بالفعل."
+    "allVendorsHaveTemplates": "كل الموردين لديهم قوالب مؤشرات بالفعل.",
+    "searchPlaceholder": "ابحث بالمورد"
   },
   "invoice": {
     "title": "الفواتير",
@@ -632,7 +632,8 @@
       "negative": "لا يمكن أن تكون القيمة سالبة.",
       "duplicate": "هذه القيمة مستخدمة بالفعل في سجل آخر.",
       "stillReferenced": "ما زالت هناك سجلات أخرى مرتبطة بهذا السجل."
-    }
+    },
+    "searchPlaceholder": "ابحث بالمورد أو الكود"
   },
   "settings": {
     "usersTitle": "المستخدمون والصلاحيات",
@@ -690,6 +691,74 @@
       "forbidden": "تعديل الإعدادات لمدير التخطيط فقط.",
       "saveFailed": "تعذّر حفظ التغيير. حاول مرة أخرى.",
       "stillReferenced": "ما زالت هناك سجلات أخرى مرتبطة بهذا السجل."
-    }
+    },
+    "searchLookups": "ابحث بالكود أو التسمية"
+  },
+  "filters": {
+    "search": "بحث",
+    "searchOptions": "ابحث في الخيارات",
+    "noOptions": "لا توجد خيارات مطابقة",
+    "yes": "نعم",
+    "no": "لا",
+    "min": "الأدنى",
+    "max": "الأقصى",
+    "from": "من",
+    "to": "إلى",
+    "clear": "مسح",
+    "clearAll": "مسح الكل",
+    "anyDate": "أي تاريخ",
+    "previousMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ",
+    "cancel": "إلغاء",
+    "rename": "إعادة تسمية",
+    "delete": "حذف",
+    "setDefault": "استخدامها عند الفتح",
+    "unsetDefault": "إيقاف الاستخدام عند الفتح",
+    "default": "افتراضية",
+    "preset": {
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "thisWeek": "هذا الأسبوع",
+      "last7": "آخر 7 أيام",
+      "thisMonth": "هذا الشهر",
+      "lastMonth": "الشهر الماضي"
+    },
+    "error": {
+      "required": "هذا الحقل مطلوب.",
+      "filterNameTaken": "لديك بالفعل تصفية بهذا الاسم.",
+      "saveFailed": "تعذّر الحفظ. حاول مرة أخرى.",
+      "forbidden": "غير مسموح.",
+      "number": "أدخل رقمًا.",
+      "negative": "لا يمكن أن تكون القيمة سالبة.",
+      "duplicate": "هذه القيمة مستخدمة بالفعل.",
+      "stillReferenced": "ما زالت هناك سجلات أخرى مرتبطة بهذا السجل."
+    },
+    "fields": "الحقول",
+    "searchFields": "ابحث في الحقول",
+    "noFields": "لا توجد حقول مطابقة",
+    "removeFilter": "إزالة التصفية",
+    "choose": "اختر",
+    "nSelected": "{count} محدد",
+    "saveAsView": "حفظ هذا العرض",
+    "viewName": "اسم العرض",
+    "viewOptions": "خيارات العرض",
+    "operator": {
+      "contains": "يحتوي على",
+      "notContains": "لا يحتوي على",
+      "is": "يساوي",
+      "in": "ضمن",
+      "notIn": "ليس ضمن",
+      "between": "بين",
+      "gt": "أكبر من",
+      "lt": "أصغر من",
+      "isEmpty": "فارغ",
+      "isNotEmpty": "غير فارغ"
+    },
+    "moreOperators": "خيارات أخرى",
+    "changeOperator": "تغيير",
+    "shortNot": "ليس",
+    "noValueNeeded": "هذا الخيار لا يحتاج إلى قيمة."
   }
 }
