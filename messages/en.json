@@ -37,7 +37,8 @@
     "admin": "Administration",
     "settings": "Settings",
     "openMenu": "Open navigation menu",
-    "closeMenu": "Close navigation menu"
+    "closeMenu": "Close",
+    "menu": "Menu"
   },
   "auth": {
     "signIn": "Sign in",

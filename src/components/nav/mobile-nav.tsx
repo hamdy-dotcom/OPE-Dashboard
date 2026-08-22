@@ -1,58 +1,36 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link, usePathname } from "@/lib/i18n/routing";
 import { Sidebar } from "./sidebar";
 import type { AppRole } from "@/lib/roles";
 
 /**
- * Below `xl` the sidebar in the shell is hidden and there is no other way to
- * move between modules, so this is the mobile replacement: a trigger in the
- * topbar that opens the same `Sidebar` content in a sheet sliding in from the
- * start edge, mirroring the record `Drawer`'s geometry (full height under the
- * topbar, same z-40/z-50 scrim-and-panel convention).
- *
- * Driven entirely by a `?nav=1` URL param, the same way the record drawer is
- * driven by `?id=`/`?mode=` — the open/close controls are real `<Link>`s, not
- * a custom onClick + useState toggle. A tap on a real anchor is native
- * browser navigation, not dependent on a JS click handler ever attaching, so
- * this sidesteps whatever was swallowing taps on the previous button-based
- * version on real devices.
+ * Rebuilt from scratch after four failed attempts (icon button with nested
+ * spans, enlarged touch target, negative-margin removal, native <a href>) —
+ * all worked in every remote/programmatic test but not on real Android
+ * devices. `LocaleSwitch` is the one topbar control confirmed working on
+ * those same devices, so this mirrors its structure exactly: a plain
+ * `<button>`, plain text, the identical class pattern, no icon, no extra
+ * attributes. Only the behavior differs.
  */
 export function MobileNav({ role }: { role: AppRole }) {
   const t = useTranslations("nav");
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const open = searchParams.get("nav") === "1";
-
-  const query: Record<string, string> = {};
-  searchParams.forEach((value, key) => {
-    if (key !== "nav") query[key] = value;
-  });
-
-  const openHref = { pathname, query: { ...query, nav: "1" } };
-  const closeHref = { pathname, query };
+  const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Link
-        href={openHref}
-        aria-label={t("openMenu")}
-        aria-expanded={open}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-hairline text-ink-2 transition-colors hover:bg-raise hover:text-ink xl:hidden"
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-[12px] font-semibold tracking-[0.04em] text-ink-2 hover:bg-raise xl:hidden"
       >
-        <span aria-hidden className="grid gap-[3px]">
-          <span className="block h-[1.5px] w-4 bg-current" />
-          <span className="block h-[1.5px] w-4 bg-current" />
-          <span className="block h-[1.5px] w-4 bg-current" />
-        </span>
-      </Link>
+        {t("menu")}
+      </button>
 
       {open && (
         <>
-          <Link
-            href={closeHref}
+          <button
+            onClick={() => setOpen(false)}
             aria-hidden
             tabIndex={-1}
             className="fixed bottom-0 start-0 end-0 top-[68px] z-40 bg-black/55 xl:hidden"
@@ -61,22 +39,17 @@ export function MobileNav({ role }: { role: AppRole }) {
           <aside
             role="dialog"
             aria-modal="true"
-            aria-label={t("openMenu")}
             className="fixed bottom-0 start-0 top-[68px] z-50 flex w-[min(300px,84vw)] flex-col overflow-y-auto border-e border-hairline bg-surface shadow-[0_0_60px_rgb(0_0_0/0.6)] xl:hidden"
           >
             <div className="flex shrink-0 justify-end border-b border-hairline px-3 py-2.5">
-              <Link
-                href={closeHref}
-                aria-label={t("closeMenu")}
-                className="grid h-11 w-11 place-items-center rounded-[8px] border border-hairline text-[15px] text-ink-2 transition-colors hover:bg-raise hover:text-ink"
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-[12px] font-semibold tracking-[0.04em] text-ink-2 hover:bg-raise"
               >
-                ×
-              </Link>
+                {t("closeMenu")}
+              </button>
             </div>
-            {/* Navigating to another module changes the pathname, which drops
-                the nav=1 param on its own — no explicit close-on-navigate
-                wiring needed. */}
-            <Sidebar role={role} variant="mobile" />
+            <Sidebar role={role} variant="mobile" onNavigate={() => setOpen(false)} />
           </aside>
         </>
       )}
