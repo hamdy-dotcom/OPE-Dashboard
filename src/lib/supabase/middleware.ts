@@ -40,7 +40,7 @@ export async function updateSession(request: NextRequest) {
     const locale = path.startsWith("/ar") ? "ar" : "en";
     const url = request.nextUrl.clone();
     url.pathname = `/${locale}/login`;
-    url.searchParams.set("next", path);
+    url.searchParams.set("next", stripped);
     return NextResponse.redirect(url);
   }
 
