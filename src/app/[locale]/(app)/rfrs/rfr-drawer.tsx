@@ -125,9 +125,10 @@ export async function RfrDrawer({
 
       <Section title={t("accessTime")}>
         {/*
-          Both the number and its formatting come from v_rfr_access_time
-          (fn_rfr_access_minutes + fn_format_minutes). Nothing is recomputed
-          here — only the tone, which says whether the clock is ticking.
+          Both the number and its formatting come from the access_minutes /
+          access_display computed columns on rfrs (fn_rfr_access_minutes +
+          fn_format_minutes). Nothing is recomputed here — only the tone,
+          which says whether the clock is ticking.
         */}
         <div className="flex flex-wrap items-baseline gap-3">
           <span

@@ -108,88 +108,90 @@ export function DataTable<T extends { id: string }>({
   };
 
   return (
-    <table className="w-full table-fixed border-collapse">
-      <thead>
-        <tr>
-          {columns.map((column) => {
-            const isSorted = order.key === column.key;
-            return (
-              <th
-                key={column.key}
-                scope="col"
-                aria-sort={
-                  isSorted
-                    ? order.dir === "asc"
-                      ? "ascending"
-                      : "descending"
-                    : undefined
-                }
-                className={`sticky top-[68px] z-10 border-b border-hairline bg-surface px-3 py-2.5 text-[11px] font-medium text-ink-3 ${
-                  column.numeric ? "text-end" : "text-start"
-                } ${column.className ?? ""}`}
-              >
-                {column.sortValue ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleSort(column.key)}
-                    className={`inline-flex items-center gap-1 transition-colors hover:text-ink ${
-                      isSorted ? "text-ink" : ""
-                    }`}
-                  >
-                    <span className="truncate">{column.header}</span>
-                    <span aria-hidden className="text-[9px]">
-                      {isSorted ? (order.dir === "asc" ? "▲" : "▼") : "↕"}
-                    </span>
-                  </button>
-                ) : (
-                  <span className="truncate">{column.header}</span>
-                )}
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
-
-      <tbody>
-        {sorted.length === 0 ? (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] table-fixed border-collapse">
+        <thead>
           <tr>
-            <td colSpan={columns.length} className="px-4">
-              {empty}
-            </td>
+            {columns.map((column) => {
+              const isSorted = order.key === column.key;
+              return (
+                <th
+                  key={column.key}
+                  scope="col"
+                  aria-sort={
+                    isSorted
+                      ? order.dir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                  className={`sticky top-[68px] z-10 border-b border-hairline bg-surface px-3 py-2.5 text-[11px] font-medium text-ink-3 ${
+                    column.numeric ? "text-end" : "text-start"
+                  } ${column.className ?? ""}`}
+                >
+                  {column.sortValue ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(column.key)}
+                      className={`inline-flex items-center gap-1 transition-colors hover:text-ink ${
+                        isSorted ? "text-ink" : ""
+                      }`}
+                    >
+                      <span className="truncate">{column.header}</span>
+                      <span aria-hidden className="text-[9px]">
+                        {isSorted ? (order.dir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="truncate">{column.header}</span>
+                  )}
+                </th>
+              );
+            })}
           </tr>
-        ) : (
-          sorted.map((row) => {
-            const isActive = active === row.id;
-            return (
-              <tr
-                key={rowKey ? rowKey(row) : row.id}
-                onClick={() => select(row.id)}
-                aria-selected={isActive}
-                className={`cursor-pointer border-b border-hairline transition-colors last:border-b-0 ${
-                  isActive ? "bg-elev" : "hover:bg-raise"
-                }`}
-              >
-                {columns.map((column, index) => (
-                  <td
-                    key={column.key}
-                    className={`${index === 0 ? "relative" : ""} px-3 py-2.5 text-[13px] ${
-                      column.numeric ? "tnum text-end" : "text-start"
-                    } ${column.className ?? ""}`}
-                  >
-                    {index === 0 && isActive && (
-                      <span
-                        aria-hidden
-                        className="absolute bottom-0 start-0 top-0 w-[2px] bg-ink"
-                      />
-                    )}
-                    <div className="truncate">{column.cell(row)}</div>
-                  </td>
-                ))}
-              </tr>
-            );
-          })
-        )}
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody>
+          {sorted.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="px-4">
+                {empty}
+              </td>
+            </tr>
+          ) : (
+            sorted.map((row) => {
+              const isActive = active === row.id;
+              return (
+                <tr
+                  key={rowKey ? rowKey(row) : row.id}
+                  onClick={() => select(row.id)}
+                  aria-selected={isActive}
+                  className={`cursor-pointer border-b border-hairline transition-colors last:border-b-0 ${
+                    isActive ? "bg-elev" : "hover:bg-raise"
+                  }`}
+                >
+                  {columns.map((column, index) => (
+                    <td
+                      key={column.key}
+                      className={`${index === 0 ? "relative" : ""} px-3 py-2.5 text-[13px] ${
+                        column.numeric ? "tnum text-end" : "text-start"
+                      } ${column.className ?? ""}`}
+                    >
+                      {index === 0 && isActive && (
+                        <span
+                          aria-hidden
+                          className="absolute bottom-0 start-0 top-0 w-[2px] bg-ink"
+                        />
+                      )}
+                      <div className="truncate">{column.cell(row)}</div>
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }

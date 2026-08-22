@@ -6,7 +6,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { SavedViewsTabs } from "@/components/ui/saved-views-tabs";
 import { applyFilters, toControls, writeFilterState } from "@/lib/filters";
 import { resolveFilters } from "@/lib/filter-page";
-import { loadOperations, loadPickerOptions, loadShifts } from "./queries";
+import { loadOperations, loadPickerOptions } from "./queries";
 import { buildOperationFilters } from "./filters";
 import { OperationsTable } from "./operations-table";
 import { OperationDrawer } from "./operation-drawer";
@@ -48,13 +48,12 @@ export default async function OperationsPage({
   const user = await requireUser(locale);
   const canEdit = canWriteOps(user.role);
 
-  const [shifts, pickers, { state: filterState, saved }] = await Promise.all([
-    loadShifts(),
+  const [pickers, { state: filterState, saved }, all] = await Promise.all([
     loadPickerOptions(),
     resolveFilters(MODULE, sp),
+    loadOperations({}),
   ]);
-
-  const all = await loadOperations({});
+  const shifts = pickers.shifts;
 
   const filters = buildOperationFilters(
     {

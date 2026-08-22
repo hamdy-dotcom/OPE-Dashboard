@@ -4,9 +4,10 @@ import { loadLookupSets, loadLookups, type LookupOption } from "@/lib/lookups";
 /**
  * Read side of the RFR module.
  *
- * Access time is never computed here. `v_rfr_access_time` returns both the
- * minutes and the already-formatted display string (fn_format_minutes), and
- * that string is what the UI renders.
+ * Access time is never computed here. `access_minutes`/`access_display` are
+ * PostgREST computed columns on `rfrs` (0003_rfr_access_computed_columns.sql)
+ * backed by fn_rfr_access_minutes/fn_format_minutes, read straight off the
+ * row — the display string is already formatted by the database.
  */
 
 export type RfrRow = {
@@ -29,7 +30,7 @@ export type RfrRow = {
   skipReasonLabel: string | null;
   completedAt: string | null;
   raisedBy: string | null;
-  /** From v_rfr_access_time — already formatted by the database. */
+  /** From the access_display computed column — already formatted by the database. */
   accessDisplay: string;
   accessMinutes: number;
   /**
@@ -85,6 +86,9 @@ export type RfrOptions = {
   stages: LookupOption[];
 };
 
+// access_minutes / access_display are PostgREST computed columns (see
+// 0003_rfr_access_computed_columns.sql) — reading them here is one round
+// trip, not a separate query against v_rfr_access_time afterward.
 const SELECT = `
   id,
   rfr_number,
@@ -97,6 +101,8 @@ const SELECT = `
   stage_id,
   skip_reason_id,
   completed_at,
+  access_minutes,
+  access_display,
   vehicles ( vehicle_code, plate_number ),
   drivers ( driver_code, driver_name ),
   profiles ( full_name ),
@@ -112,36 +118,16 @@ async function lookupMap(): Promise<Map<string, LookupOption>> {
   return new Map([...sets.rfr_stage, ...sets.skip_reason].map((l) => [l.id, l]));
 }
 
-/** rfr_id -> what v_rfr_access_time says about it. */
-async function accessTimes(ids: string[]) {
-  if (ids.length === 0) return new Map<string, { display: string; minutes: number }>();
-
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("v_rfr_access_time")
-    .select("rfr_id, access_minutes, access_display")
-    .in("rfr_id", ids);
-
-  return new Map(
-    (data ?? []).map((a) => [
-      a.rfr_id as string,
-      { display: a.access_display ?? "—", minutes: Number(a.access_minutes ?? 0) },
-    ]),
-  );
-}
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function toRow(
   r: any,
   lookups: Map<string, LookupOption>,
-  access: Map<string, { display: string; minutes: number }>,
 ): RfrRow {
   const vehicle = Array.isArray(r.vehicles) ? r.vehicles[0] : r.vehicles;
   const driver = Array.isArray(r.drivers) ? r.drivers[0] : r.drivers;
   const raiser = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
   const stage = lookups.get(r.stage_id);
   const skipReason = r.skip_reason_id ? lookups.get(r.skip_reason_id) : undefined;
-  const clock = access.get(r.id) ?? { display: "—", minutes: 0 };
 
   const workOrders: { repair_start_at: string | null }[] = Array.isArray(r.work_orders)
     ? r.work_orders
@@ -168,8 +154,8 @@ function toRow(
     skipReasonLabel: skipReason?.labelEn ?? null,
     completedAt: r.completed_at,
     raisedBy: raiser?.full_name ?? null,
-    accessDisplay: clock.display,
-    accessMinutes: clock.minutes,
+    accessDisplay: r.access_display ?? "—",
+    accessMinutes: Number(r.access_minutes ?? 0),
     clockRunning: stage?.code === "active" && !anyRepairStarted,
   };
 }
@@ -177,25 +163,33 @@ function toRow(
 
 export async function loadRfrs(stageCode: string): Promise<RfrRow[]> {
   const supabase = await createClient();
-  const lookups = await lookupMap();
 
-  let query = supabase
-    .from("rfrs")
-    .select(SELECT)
-    .order("request_at", { ascending: false })
-    .limit(200);
+  const baseQuery = () =>
+    supabase.from("rfrs").select(SELECT).order("request_at", { ascending: false }).limit(200);
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  let lookups: Map<string, LookupOption>;
+  let rows: any[];
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   if (stageCode) {
+    // The filter needs the resolved stage id, so lookups must resolve first here.
+    lookups = await lookupMap();
     const stageId = [...lookups.values()].find((l) => l.code === stageCode)?.id;
     // an unknown stage code must not silently show everything
-    query = query.eq("stage_id", stageId ?? "00000000-0000-0000-0000-000000000000");
+    const { data } = await baseQuery().eq(
+      "stage_id",
+      stageId ?? "00000000-0000-0000-0000-000000000000",
+    );
+    rows = data ?? [];
+  } else {
+    // Nothing here depends on lookups, so fetch both at once.
+    const [lookupsResult, { data }] = await Promise.all([lookupMap(), baseQuery()]);
+    lookups = lookupsResult;
+    rows = data ?? [];
   }
 
-  const { data } = await query;
-  const rows = data ?? [];
-  const access = await accessTimes(rows.map((r) => r.id as string));
-
-  return rows.map((r) => toRow(r, lookups, access));
+  return rows.map((r) => toRow(r, lookups));
 }
 
 export async function loadRfr(id: string): Promise<RfrRow | null> {
@@ -206,8 +200,7 @@ export async function loadRfr(id: string): Promise<RfrRow | null> {
   ]);
 
   if (!data) return null;
-  const access = await accessTimes([id]);
-  return toRow(data, lookups, access);
+  return toRow(data, lookups);
 }
 
 export async function loadRfrIssues(rfrId: string): Promise<RfrIssueRow[]> {

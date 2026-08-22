@@ -13,8 +13,20 @@ type Group = { label: string; items: Item[] };
  *
  * Client-side because the active item comes from the pathname, which a Server
  * Component cannot read.
+ *
+ * Also the content of the mobile nav sheet (`MobileNav`) below `xl`, where
+ * `variant="mobile"` drops the desktop sticky/card chrome and `onNavigate`
+ * closes the sheet after a link is tapped.
  */
-export function Sidebar({ role }: { role: AppRole }) {
+export function Sidebar({
+  role,
+  variant = "desktop",
+  onNavigate,
+}: {
+  role: AppRole;
+  variant?: "desktop" | "mobile";
+  onNavigate?: () => void;
+}) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
@@ -72,8 +84,13 @@ export function Sidebar({ role }: { role: AppRole }) {
     });
   }
 
+  const navClass =
+    variant === "desktop"
+      ? "sticky top-[68px] rounded-[14px] bg-surface px-2.5 py-3.5 rim"
+      : "px-2.5 py-3.5";
+
   return (
-    <nav className="sticky top-[68px] rounded-[14px] bg-surface px-2.5 py-3.5 rim">
+    <nav className={navClass}>
       {groups.map((g) => (
         <div key={g.label}>
           <p className="px-2.5 pb-1.5 pt-3.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-3">
@@ -87,6 +104,7 @@ export function Sidebar({ role }: { role: AppRole }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavigate}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13.5px] transition-colors ${
                   isActive

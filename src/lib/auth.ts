@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/roles";
@@ -13,8 +14,15 @@ export type CurrentUser = {
   role: AppRole;
 };
 
-/** Current signed-in user with profile. Redirects to login when absent. */
-export async function requireUser(locale: string): Promise<CurrentUser> {
+/**
+ * Current signed-in user with profile. Redirects to login when absent.
+ *
+ * Wrapped in React's `cache()` so the layout and a page (or an action) calling
+ * this within the same request share one `getUser()` + `profiles` lookup
+ * instead of each repeating it. Middleware runs before this cache scope
+ * exists, so its own `getUser()` call is separate and not deduplicated here.
+ */
+export const requireUser = cache(async (locale: string): Promise<CurrentUser> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,7 +52,7 @@ export async function requireUser(locale: string): Promise<CurrentUser> {
     isEngineer: profile.is_engineer,
     role: profile.role,
   };
-}
+});
 
 /* --- capability helpers live in `roles.ts` so client code can read them --- */
 

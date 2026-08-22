@@ -35,7 +35,9 @@
     "scorecards": "Scorecards",
     "invoices": "Invoices",
     "admin": "Administration",
-    "settings": "Settings"
+    "settings": "Settings",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu"
   },
   "auth": {
     "signIn": "Sign in",

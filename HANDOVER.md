@@ -32,10 +32,10 @@ later phase.
 
 | Thing | Where | What to do |
 |---|---|---|
-| Code | GitHub `hamdy-dotcom/OPE-Dashboard` | Transfer repo ownership, or fork |
+| Code | GitHub `mmotagly/OPE-Dashboard` | Transferred |
 | Database | Supabase project `zvcfnavmrrbcfrszuxie` | Transfer project, or migrate to a new one |
-| Hosting | Vercel project `ope-dashboard` | Transfer, or re-import the repo |
-| Live URL | `ope-dashboard-eosin.vercel.app` | Currently broken — see section 3 |
+| Hosting | Vercel project `ope-dashboard` (new project, under this account) | Live |
+| Live URL | `ope-dashboard-seven.vercel.app` | Working |
 
 **If migrating to a fresh Supabase project instead of transferring:**
 
@@ -61,26 +61,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 ---
 
-## 3. IMMEDIATE BLOCKER — production is down
+## 3. Resolved — production deployment
 
-The Vercel deployment returns `500 MIDDLEWARE_INVOCATION_FAILED`. Runtime logs
-show:
-
-```
-Error: Your project's URL and Key are required to create a Supabase client!
-```
-
-The environment variables exist in Vercel but the app can't read them. The
-last thing being checked when the project changed hands was whether the
-variable **names are misspelled** in Vercel — they must match the two names
-above exactly, character for character.
-
-**To fix:** delete the variables in Vercel → Settings → Environment Variables,
-re-add them with exact names, tick Production + Preview + Development, then
-**redeploy without build cache** (Deployments → latest → ⋯ → Redeploy, untick
-"Use existing build cache").
-
-Local development works fine. This is a deployment configuration issue only.
+Production was down after the handover (`500 MIDDLEWARE_INVOCATION_FAILED`,
+the Supabase client failing to read its env vars). The original Vercel
+account's owner was unreachable, so rather than debug the old project's
+configuration, a fresh Vercel project was created under this account
+instead and linked to the transferred GitHub repo. It deployed cleanly with
+both `NEXT_PUBLIC_*` env vars set from the start, and sign-in has been
+confirmed working end-to-end at `ope-dashboard-seven.vercel.app`.
 
 ---
 
@@ -340,10 +329,10 @@ it must use rather than recompute, state which roles can write, and end with
 
 ## 12. Recommended order of work
 
-1. **Fix the Vercel deployment** (section 3). Nothing else can be tested
-   remotely until this is done.
+1. ~~Fix the Vercel deployment~~ — done, see section 3.
 2. **Test on a phone.** Twelve modules were refactored without the mobile
-   sheet ever rendering, and phones are the primary entry device.
+   sheet ever rendering, and phones are the primary entry device. This is
+   now the top open priority.
 3. **Move filtering and sorting into the database query** (section 8, item 1).
    This becomes a correctness bug within days of real use.
 4. **Move code generation into SQL** (section 8, item 3).

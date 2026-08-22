@@ -217,13 +217,11 @@ function toRow(w: any, lookups: Map<string, LookupOption>): WorkOrderRow {
 
 export async function loadWorkOrders(search: string): Promise<WorkOrderRow[]> {
   const supabase = await createClient();
-  const lookups = await lookupMap();
 
-  const { data } = await supabase
-    .from("work_orders")
-    .select(SELECT)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [lookups, { data }] = await Promise.all([
+    lookupMap(),
+    supabase.from("work_orders").select(SELECT).order("created_at", { ascending: false }).limit(200),
+  ]);
 
   const rows = (data ?? []).map((w) => toRow(w, lookups));
   const q = search.trim().toLowerCase();
