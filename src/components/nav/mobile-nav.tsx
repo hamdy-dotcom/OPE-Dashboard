@@ -35,7 +35,7 @@ export function MobileNav({ role }: { role: AppRole }) {
         onClick={() => setOpen(true)}
         aria-label={t("openMenu")}
         aria-expanded={open}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] border border-hairline text-ink-2 transition-colors hover:bg-raise hover:text-ink xl:hidden"
+        className="-m-1.5 grid h-11 w-11 shrink-0 touch-manipulation place-items-center rounded-[8px] border border-hairline text-ink-2 transition-colors hover:bg-raise hover:text-ink xl:hidden"
       >
         <span aria-hidden className="grid gap-[3px]">
           <span className="block h-[1.5px] w-4 bg-current" />
@@ -65,7 +65,7 @@ export function MobileNav({ role }: { role: AppRole }) {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("closeMenu")}
-                className="grid h-8 w-8 place-items-center rounded-[8px] border border-hairline text-[15px] text-ink-2 transition-colors hover:bg-raise hover:text-ink"
+                className="-m-1.5 grid h-11 w-11 touch-manipulation place-items-center rounded-[8px] border border-hairline text-[15px] text-ink-2 transition-colors hover:bg-raise hover:text-ink"
               >
                 ×
               </button>
