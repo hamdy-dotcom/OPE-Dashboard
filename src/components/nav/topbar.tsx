@@ -8,7 +8,7 @@ export async function Topbar({ user }: { user: CurrentUser }) {
   const t = await getTranslations();
 
   return (
-    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b border-hairline bg-canvas/85 px-5 py-3 backdrop-blur-md sm:gap-4">
+    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 overscroll-x-none border-b border-hairline bg-canvas/85 px-5 py-3 backdrop-blur-md sm:gap-4">
       <MobileNav role={user.role} />
 
       <div className="flex items-center gap-2.5 font-semibold tracking-[-0.01em]">
