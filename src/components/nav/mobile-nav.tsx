@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Sidebar } from "./sidebar";
 import type { AppRole } from "@/lib/roles";
@@ -12,15 +13,21 @@ import type { AppRole } from "@/lib/roles";
  * sliding in from the start edge, mirroring the record `Drawer`'s geometry
  * (full height under the topbar, same z-40/z-50 scrim-and-panel convention).
  *
- * Root cause of the "taps do nothing" bug (five prior attempts, all passing
- * every programmatic test but failing on real Android hardware): Chrome for
- * Android's overscroll history navigation claims edge-adjacent touches as a
- * back-gesture candidate before they ever reach the DOM, entirely outside
- * React's event system — which is why every synthetic/remote test here
- * always looked fine. `overscroll-x-none` on the header (see Topbar) and on
- * this button opts that region out. OEM Chromium forks that don't implement
- * Chrome's edge-navigation gesture never showed the bug, which is what
- * pointed at this.
+ * Root cause of "taps do nothing" (six prior attempts, all passing every
+ * programmatic test but failing on real Android Chrome): `backdrop-blur-md`
+ * on the topbar's `<header>` makes it the CSS containing block for its
+ * `position: fixed` descendants — a real spec rule (backdrop-filter behaves
+ * like transform/filter/perspective here). Since the sheet used to render as
+ * a DOM child of the header, its `top: 68px` / `bottom: 0` were resolved
+ * against the header's own ~68px-tall box, not the viewport — landing
+ * exactly on top of each other for a computed height of 0. The click always
+ * worked and `open` always flipped to `true`; the sheet was just an
+ * invisible sliver. `Drawer` never had this bug because it's never rendered
+ * inside the header. Confirmed live via Chrome remote debugging
+ * (chrome://inspect) over USB, not guessed.
+ *
+ * Fix: portal the scrim + sheet straight into `document.body`, escaping the
+ * header's containing block entirely.
  */
 export function MobileNav({ role }: { role: AppRole }) {
   const t = useTranslations("nav");
@@ -42,7 +49,7 @@ export function MobileNav({ role }: { role: AppRole }) {
         onClick={() => setOpen(true)}
         aria-label={t("openMenu")}
         aria-expanded={open}
-        className="grid h-11 w-11 shrink-0 touch-pan-y overscroll-x-none place-items-center rounded-[8px] border border-hairline text-ink-2 transition-colors hover:bg-raise hover:text-ink xl:hidden"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-hairline text-ink-2 transition-colors hover:bg-raise hover:text-ink xl:hidden"
       >
         <span aria-hidden className="grid gap-[3px]">
           <span className="block h-[1.5px] w-4 bg-current" />
@@ -51,36 +58,38 @@ export function MobileNav({ role }: { role: AppRole }) {
         </span>
       </button>
 
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            onClick={() => setOpen(false)}
-            className="fixed bottom-0 start-0 end-0 top-[68px] z-40 bg-black/55 xl:hidden"
-          />
+      {open &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              aria-hidden
+              tabIndex={-1}
+              onClick={() => setOpen(false)}
+              className="fixed bottom-0 start-0 end-0 top-[68px] z-40 bg-black/55 xl:hidden"
+            />
 
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("openMenu")}
-            className="fixed bottom-0 start-0 top-[68px] z-50 flex w-[min(300px,84vw)] flex-col overflow-y-auto border-e border-hairline bg-surface shadow-[0_0_60px_rgb(0_0_0/0.6)] xl:hidden"
-          >
-            <div className="flex shrink-0 justify-end border-b border-hairline px-3 py-2.5">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label={t("closeMenu")}
-                className="grid h-11 w-11 place-items-center rounded-[8px] border border-hairline text-[15px] text-ink-2 transition-colors hover:bg-raise hover:text-ink"
-              >
-                ×
-              </button>
-            </div>
-            <Sidebar role={role} variant="mobile" onNavigate={() => setOpen(false)} />
-          </aside>
-        </>
-      )}
+            <aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("openMenu")}
+              className="fixed bottom-0 start-0 top-[68px] z-50 flex w-[min(300px,84vw)] flex-col overflow-y-auto border-e border-hairline bg-surface shadow-[0_0_60px_rgb(0_0_0/0.6)] xl:hidden"
+            >
+              <div className="flex shrink-0 justify-end border-b border-hairline px-3 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label={t("closeMenu")}
+                  className="grid h-11 w-11 place-items-center rounded-[8px] border border-hairline text-[15px] text-ink-2 transition-colors hover:bg-raise hover:text-ink"
+                >
+                  ×
+                </button>
+              </div>
+              <Sidebar role={role} variant="mobile" onNavigate={() => setOpen(false)} />
+            </aside>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
